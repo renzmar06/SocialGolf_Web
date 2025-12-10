@@ -5,7 +5,6 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const { pathname } = request.nextUrl;
 
-  console.log("Middleware:", pathname, "Token:", !!token);
 
   // Redirect root to dashboard
   if (pathname === "/") {
