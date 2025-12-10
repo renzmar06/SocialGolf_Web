@@ -7,13 +7,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState } from "react";
 import { Home, FileText, ChevronDown } from "lucide-react";
-import logo from "@/assets/logos/main.svg";
-import darkLogo from "@/assets/logos/dark.svg";
+
+import logo from "@/assets/logos/Social-golf-logo.png";
+import darkLogo from "@/assets/logos/Social-golf-logo.png";
 
 const cn = (...inputs: any[]) => twMerge(clsx(inputs));
 
 // Context
-const SidebarContext = createContext<{ isOpen: boolean } | null>(null);
+const SidebarContext = createContext<{ isOpen: boolean; toggleSidebar: () => void } | null>(null);
 const useSidebarContext = () => {
   const context = useContext(SidebarContext);
   if (!context) throw new Error("useSidebarContext must be used within SidebarProvider");
@@ -21,13 +22,16 @@ const useSidebarContext = () => {
 };
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(true);
+  const toggleSidebar = () => setIsOpen(prev => !prev);
   return (
-    <SidebarContext.Provider value={{ isOpen }}>
+    <SidebarContext.Provider value={{ isOpen, toggleSidebar }}>
       {children}
     </SidebarContext.Provider>
   );
 }
+
+export { useSidebarContext };
 
 // Reusable Menu Item Link
 function MenuLink({ href, isActive, children }: { href: string; isActive: boolean; children: React.ReactNode }) {
@@ -60,7 +64,7 @@ function DropdownMenu({ title, icon: Icon, isOpen, onToggle, children, isAnyActi
         )}
       >
         <div className="flex items-center gap-3">
-          <Icon className="size-6 shrink-0" />
+          <Icon className="size-5 shrink-0" />
           <span>{title}</span>
         </div>
         <ChevronDown
@@ -81,38 +85,39 @@ function DropdownMenu({ title, icon: Icon, isOpen, onToggle, children, isAnyActi
   );
 }
 
+
 // Main Sidebar Component
 export function Sidebar() {
   const pathname = usePathname();
   const { isOpen } = useSidebarContext();
-  const [pagesOpen, setPagesOpen] = useState(true); // Change to false if you want collapsed by default
+  const [pagesOpen, setPagesOpen] = useState(true);
 
   const isPageActive = pathname === "/" || pathname === "/blog";
 
   return (
     <aside
       className={cn(
-        "max-w-[250px] border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-dark",
-        isOpen ? "w-full" : "w-0",
-        "overflow-hidden transition-all duration-200"
+        "border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-dark transition-all duration-300",
+        isOpen ? "w-[250px]" : "w-0",
+        "overflow-hidden"
       )}
     >
-      <div className="flex h-screen flex-col">
+      <div className="flex h-screen flex-col font-midium text-sm">
         {/* Logo */}
-        <div className="px-6 py-8">
-          <Link href="/">
-            <div className="relative h-8 w-40">
-              <Image src={logo} alt="Logo" fill className="dark:hidden" />
-              <Image src={darkLogo} alt="Logo" fill className="hidden dark:block" />
+        <div className="px-6 py-2">
+          <Link href="/dashboard">
+            <div className="">
+              <Image src={logo} alt="Logo"  className="dark:hidden w-30 h-auto" />
+              <Image src={darkLogo} alt="Logo" className="hidden dark:block" />
             </div>
           </Link>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-4">
+        <nav className="flex-1 space-y-1 px-4 mt-4">
           {/* Dashboard */}
-          <MenuLink href="/" isActive={pathname === "/"}>
-            <Home className="size-6" />
+          <MenuLink href="/dashboard" isActive={pathname === "/dashboard"}>
+            <Home className="size-5" />
             <span>Dashboard</span>
           </MenuLink>
 
@@ -124,7 +129,7 @@ export function Sidebar() {
             onToggle={() => setPagesOpen(!pagesOpen)}
             isAnyActive={isPageActive}
           >
-            <MenuLink href="/" isActive={pathname === "/homepage"}>
+            <MenuLink href="/" isActive={pathname === "/"}>
               <span className="text-sm">Home Page</span>
             </MenuLink>
             <MenuLink href="/blog" isActive={pathname === "/blog"}>
