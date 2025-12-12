@@ -498,7 +498,7 @@ export default function EventsPage() {
 
       {/* Create / Edit Event Modal */}
       {isModalOpen && (
-        <div className="fixed left-0 right-0 top-[-30px] bottom-0  flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed left-0 right-0 top-[-30px] bottom-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="max-h-full w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl">
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
@@ -784,7 +784,7 @@ export default function EventsPage() {
 
       {/* QR Code Modal */}
       {isQRModalOpen && qrEvent && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
@@ -847,7 +847,7 @@ export default function EventsPage() {
 
       {/* Participants Modal */}
       {isParticipantsModalOpen && participantsEvent && (
-        <div className="fixed inset-0 z-[115] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-xl rounded-lg bg-white shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">

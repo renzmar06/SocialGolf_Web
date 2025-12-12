@@ -599,7 +599,7 @@ export default function BookingsPage() {
 
             {/* Add Service Modal */}
             {isServiceModalOpen && (
-                <div className="fixed left-0 right-0 top-[-30px] bottom-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+                <div className="fixed left-0 right-0 top-[-30px] bottom-0 z-999 flex items-center justify-center bg-black/60 p-4">
                     <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-xl  bg-white dark:bg-gray-dark  shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
