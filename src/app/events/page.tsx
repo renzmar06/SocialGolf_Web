@@ -275,7 +275,7 @@ export default function EventsPage() {
     : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-1">
       {/* Header row */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -498,7 +498,7 @@ export default function EventsPage() {
 
       {/* Create / Edit Event Modal */}
       {isModalOpen && (
-        <div className="fixed left-0 right-0 top-16 bottom-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed left-0 right-0 top-[-30px] bottom-0  flex items-center justify-center bg-black/60 p-4">
           <div className="max-h-full w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl">
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">

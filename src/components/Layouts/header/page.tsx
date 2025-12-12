@@ -47,7 +47,7 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky box-shadow-md top-0 z-40 border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/80">
+    <header className=" box-shadow-md top-0  border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/80">
       <div className="flex h-16 items-center justify-between px-6">
         {/* Left Side */}
         <div className="flex items-center gap-6">

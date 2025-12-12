@@ -157,13 +157,13 @@ export default function ProfileEditPage() {
   // UI BELOW (SAME AS YOUR CODE, JUST USING LOADED DATABASE DATA)
   // -------------------------------------------------------------
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-gray-50 min-h-screen">
+    <div className="max-w-5xl mx-auto p-6 bg-gray-50 dark:bg-gray-500 min-h-screen">
       <h1 className="text-4xl font-bold text-gray-800 mb-10">Edit Profile</h1>
 
       <form onSubmit={onSubmit} className="space-y-10">
 
         {/* Account Info */}
-        <div className="bg-white rounded-xl shadow-sm border p-8">
+        <div className="bg-white rounded-xl shadow-sm border dark:bg-gray-dark p-8">
           <h2 className="text-2xl font-semibold text-blue-700 mb-6">
             Account Information
           </h2>
@@ -189,7 +189,7 @@ export default function ProfileEditPage() {
                 title="Email address"
                 type="email"
                 value={userData.email}
-                className="w-full px-4 py-3 border rounded-lg bg-gray-100"
+                className="w-full px-4 py-3 border rounded-lg "
                 disabled
                 placeholder="you@example.com"
               />
@@ -229,7 +229,7 @@ export default function ProfileEditPage() {
         </div>
 
         {/* Business Section */}
-        <div className="bg-white rounded-xl shadow-sm border p-8">
+        <div className="bg-white dark:bg-gray-dark rounded-xl shadow-sm border p-8">
           <h2 className="text-2xl font-semibold text-green-700 mb-6">
             Business Profile
           </h2>

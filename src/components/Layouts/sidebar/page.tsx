@@ -122,7 +122,7 @@ export function Sidebar() {
           </MenuLink>
 
           {/* Pages Dropdown */}
-          <DropdownMenu
+          {/* <DropdownMenu
             title="Pages"
             icon={FileText}
             isOpen={pagesOpen}
@@ -135,10 +135,14 @@ export function Sidebar() {
             <MenuLink href="/blog" isActive={pathname === "/blog"}>
               <span className="text-sm">Blog Page</span>
             </MenuLink>
-          </DropdownMenu>
+          </DropdownMenu> */}
           <MenuLink href="/events" isActive={pathname === "/events"}>
             <Calendar className="size-5" />
             <span>Events</span>
+          </MenuLink>
+          <MenuLink href="/bookings" isActive={pathname === "/bookings"}>
+            <Calendar className="size-5" />
+            <span>Bookings</span>
           </MenuLink>
         </nav>
       </div>
