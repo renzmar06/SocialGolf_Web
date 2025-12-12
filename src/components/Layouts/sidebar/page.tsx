@@ -144,6 +144,10 @@ export function Sidebar() {
             <Calendar className="size-5" />
             <span>Bookings</span>
           </MenuLink>
+          <MenuLink href="/promotions" isActive={pathname === "/promotions"}>
+            <Calendar className="size-5" />
+            <span>Promotions</span>
+          </MenuLink>
         </nav>
       </div>
     </aside>
