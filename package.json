@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.1",
+    "@tanstack/react-table": "^8.21.3",
     "apexcharts": "^4.5.0",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -27,7 +29,10 @@
     "nextjs-toploader": "^3.7.15",
     "react": "^19.2.0",
     "react-apexcharts": "^1.7.0",
+    "react-data-table-component": "^7.7.0",
     "react-dom": "^19.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-qr-code": "^2.0.18",
     "react-redux": "^9.2.0",
     "tailwind-merge": "^2.6.0"
   },
