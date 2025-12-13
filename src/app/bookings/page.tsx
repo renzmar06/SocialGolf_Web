@@ -47,7 +47,7 @@ export default function BookingsPage() {
     const [activeTab, setActiveTab] = useState<Tab>("Booking Requests");
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const [editingBooking, setEditingBooking] = useState<any>(null);
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const [currentDate, setCurrentDate] = useState(new Date()); // used as "view" date for calendar
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedStatus, setSelectedStatus] = useState("All Status");
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
@@ -158,39 +158,44 @@ export default function BookingsPage() {
 
     const isFormValid = formData.serviceName.trim() !== "" && formData.price > 0;
 
-    const getWeekDays = (date: Date) => {
-        const startOfWeek = new Date(date);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-        startOfWeek.setDate(diff);
+    // ---------- MONTH CALENDAR helpers ----------
+    // returns a 2D array: weeks[] -> days (Date | null)
+    const getMonthGrid = (viewDate: Date) => {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth(); // 0-index
+        // start with first day of month
+        const firstOfMonth = new Date(year, month, 1);
+        // find the Monday before/containing firstOfMonth (we use Monday as first column)
+        const firstDayIndex = (firstOfMonth.getDay() + 6) % 7; // convert Sun=0..Sat=6 -> Mon=0..Sun=6
+        const startDate = new Date(firstOfMonth);
+        startDate.setDate(firstOfMonth.getDate() - firstDayIndex);
 
-        const days = [];
-        const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const weeks: (Date | null)[][] = [];
+        let cur = new Date(startDate);
 
-        for (let i = 0; i < 7; i++) {
-            const dayDate = new Date(startOfWeek);
-            dayDate.setDate(startOfWeek.getDate() + i);
-            days.push({
-                label: dayLabels[i],
-                date: dayDate.getDate(),
-                fullDate: new Date(dayDate),
-                active: dayDate.toDateString() === selectedDate.toDateString()
-            });
+        // produce 6 weeks to always have consistent grid (common calendar pattern)
+        for (let wk = 0; wk < 6; wk++) {
+            const week: (Date | null)[] = [];
+            for (let d = 0; d < 7; d++) {
+                week.push(new Date(cur));
+                cur.setDate(cur.getDate() + 1);
+            }
+            weeks.push(week);
         }
-        return days;
+        return weeks;
     };
 
-    const calendarDays = getWeekDays(currentDate);
+    const monthGrid = getMonthGrid(currentDate);
 
-    const goToPreviousWeek = () => {
+    const goToPreviousMonth = () => {
         const newDate = new Date(currentDate);
-        newDate.setDate(currentDate.getDate() - 7);
+        newDate.setMonth(currentDate.getMonth() - 1);
         setCurrentDate(newDate);
     };
 
-    const goToNextWeek = () => {
+    const goToNextMonth = () => {
         const newDate = new Date(currentDate);
-        newDate.setDate(currentDate.getDate() + 7);
+        newDate.setMonth(currentDate.getMonth() + 1);
         setCurrentDate(newDate);
     };
 
@@ -318,7 +323,7 @@ export default function BookingsPage() {
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-semibold ">
+                    <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
                         Bookings
                     </h1>
                     <p className="text-stone-500">
@@ -337,7 +342,7 @@ export default function BookingsPage() {
 
             {/* Tabs row */}
             <div className="flex flex-wrap items-center gap-3">
-                <div className="inline-flex rounded-lg border border-gray-200  p-1 shadow-sm">
+                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
                     {TABS.map((tab) => {
                         const isActive = activeTab === tab;
                         return (
@@ -354,6 +359,16 @@ export default function BookingsPage() {
                         );
                     })}
                 </div>
+
+                <div className="w-48">
+                    <select
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        className="w-30 rounded-lg border border-gray-300 bg-white px-3 py-2 ml-10 text-sm text-gray-700 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                    >
+                        {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
             </div>
 
             {/* BOOKING REQUESTS TAB */}
@@ -363,32 +378,22 @@ export default function BookingsPage() {
                     <div className="flex items-center gap-4 w-full">
                         <div className="flex-1 md:max-w-5xl">
                             <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 " />
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                 <input
                                     type="text"
                                     placeholder="Search bookings..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300  pl-9 pr-3 py-2 text-sm  placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                 />
                             </div>
                         </div>
-
-                        <div className="w-48">
-                            <select
-                                value={selectedStatus}
-                                onChange={(e) => setSelectedStatus(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300  px-3 py-2 text-sm  focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
-                            >
-                                {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
                     </div>
 
-                    <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200  px-4 py-16 shadow-sm">
+                    <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-16 shadow-sm">
                         <div className="text-center max-w-md">
                             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100">
-                                <CalendarCheck2 className="h-12 w-12 " />
+                                <CalendarCheck2 className="h-12 w-12 text-gray-400" />
                             </div>
                             <h2 className="text-xl font-semibold text-stone-800 mb-2">
                                 No bookings found
@@ -403,68 +408,82 @@ export default function BookingsPage() {
 
             {/* CALENDAR VIEW TAB */}
             {activeTab === "Calendar View" && (
-                <div className="rounded-lg border border-gray-200  shadow-sm">
+                <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
                     <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                        <h2 className="text-base md:text-lg font-semibold ">
+                        <h2 className="text-base md:text-lg font-semibold text-gray-900">
                             {getMonthYear()}
                         </h2>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={goToPreviousWeek}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300   hover:bg-gray-50"
+                                onClick={goToPreviousMonth}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </button>
                             <button
                                 onClick={goToToday}
-                                className="rounded-md border border-gray-300  px-3 py-1.5 text-xs md:text-sm font-medium  hover:bg-gray-50"
+                                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-gray-800 hover:bg-gray-50"
                             >
                                 Today
                             </button>
                             <button
-                                onClick={goToNextWeek}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300   hover:bg-gray-50"
+                                onClick={goToNextMonth}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="px-6 py-4 space-y-6">
-                        {/* Days row */}
-                        <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-                            {calendarDays.map((day, index) => {
-                                const today = new Date();
-                                const isToday = day.fullDate.toDateString() === today.toDateString();
-                                return (
-                                    <div
-                                        key={`${day.label}-${day.date}`}
-                                        onClick={() => selectDate(day.fullDate)}
-                                        className={`flex-1 rounded-2xl border px-4 py-3 text-sm md:text-base cursor-pointer transition-colors min-h-[92px] ${day.active
-                                            ? "border-blue-500 bg-gradient-to-r from-blue-50 to-cyan-50"
-                                            : "border-gray-200 bg-white"
-                                            } ${isToday ? "bg-yellow-50" : ""}`}
-                                    >
-                                        <div className="flex items-start justify-between">
-                                            <p className="text-xs  mb-2">{day.label}</p>
+                    <div className="px-6 py-6 space-y-6">
+                        {/* Month grid header - weekdays */}
+                        <div className="grid grid-cols-7 gap-3 text-xs text-gray-500 px-2">
+                            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                                <div key={d} className="text-center font-medium">
+                                    {d}
+                                </div>
+                            ))}
+                        </div>
 
-                                            {/* If today, show yellow circular badge with day number */}
-                                            {isToday ? (
-                                                <div className="ml-2 -mt-1 flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white font-semibold">
-                                                    {day.date}
-                                                </div>
-                                            ) : (
-                                                <span className="text-lg font-semibold ">
-                                                    {day.date}
-                                                </span>
-                                            )}
-                                        </div>
+                        {/* Month grid */}
+                        <div className="grid grid-cols-7 gap-3 px-2">
+                            {monthGrid.map((week, wi) =>
+                                week.map((day, di) => {
+                                    if (!day) return null;
+                                    const isSameMonth = day.getMonth() === currentDate.getMonth();
+                                    const isToday = day.toDateString() === new Date().toDateString();
+                                    const isSelected = day.toDateString() === selectedDate.toDateString();
 
-                                        {/* Leave space for other potential content (events etc.) */}
-                                        <div className="mt-6" />
-                                    </div>
-                                );
-                            })}
+                                    return (
+                                        <button
+                                            key={`${wi}-${di}`}
+                                            onClick={() => selectDate(day)}
+                                            className={`min-h-[56px] rounded-lg border p-3 text-left transition-colors ${isSelected
+                                                    ? "border-blue-500 bg-gradient-to-r from-blue-50 to-cyan-50"
+                                                    : "border-gray-300 bg-white"
+                                                } ${!isSameMonth ? "opacity-40" : ""}`}
+                                        >
+                                            <div className="flex items-start justify-between">
+                                                <div className="text-xs text-gray-500">{/* empty to align */}</div>
+                                                {isToday ? (
+                                                    <div className="ml-2 -mt-1 flex items-center justify-center h-6 w-6 rounded-full bg-amber-500 text-white font-semibold text-sm">
+                                                        {day.getDate()}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-lg font-semibold text-gray-900">
+                                                        {day.getDate()}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* space for possible events summary (kept empty) */}
+                                            <div className="mt-3 text-sm text-gray-500">
+                                                {/* future: event count or small dots */}
+                                            </div>
+                                        </button>
+                                    );
+                                })
+                            )}
                         </div>
 
                         <div className="border-t border-gray-100 pt-6">
@@ -484,15 +503,15 @@ export default function BookingsPage() {
                 <>
                     {/* Services grid or empty state */}
                     {bookings.length === 0 ? (
-                        <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200  px-4 py-16 shadow-sm">
+                        <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-16 shadow-sm">
                             <div className="text-center max-w-md">
                                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100">
-                                    <GraduationCap className="h-10 w-10 " />
+                                    <GraduationCap className="h-10 w-10 text-gray-400" />
                                 </div>
-                                <h2 className="text-xl font-semibold  mb-1">
+                                <h2 className="text-xl font-semibold text-gray-900 mb-1">
                                     No services yet
                                 </h2>
-                                <p className="text-sm  mb-6">
+                                <p className="text-sm text-gray-600 mb-6">
                                     Create services that golfers can book
                                 </p>
                                 <button
@@ -518,10 +537,10 @@ export default function BookingsPage() {
                                                 <Users className="h-6 w-6 text-blue-600" />
                                             </div>
                                             <div>
-                                                <h3 className="text-md font-semibold ">
+                                                <h3 className="text-md font-semibold text-gray-900">
                                                     {booking.serviceName}
                                                 </h3>
-                                                <p className="text-sm ">
+                                                <p className="text-sm text-gray-500">
                                                     {booking.serviceType}
                                                 </p>
                                             </div>
@@ -536,20 +555,20 @@ export default function BookingsPage() {
 
                                     {/* description */}
                                     {booking.description && (
-                                        <p className="text-sm  mt-4">
+                                        <p className="text-sm text-gray-500 mt-4">
                                             {booking.description}
                                         </p>
                                     )}
 
                                     {/* meta row: duration, participants, price */}
-                                    <div className="mt-6 flex items-center justify-between text-sm ">
+                                    <div className="mt-6 flex items-center justify-between text-sm text-gray-600">
                                         <div className="flex items-center gap-6">
                                             <div className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4" />
+                                                <Clock className="h-4 w-4 text-gray-400" />
                                                 <span>{booking.duration} min</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4 " />
+                                                <Users className="h-4 w-4 text-gray-400" />
                                                 <span>{booking.maxParticipants}</span>
                                             </div>
                                         </div>
@@ -563,14 +582,14 @@ export default function BookingsPage() {
                                     <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3">
                                         <button
                                             onClick={() => openEditModal(booking)}
-                                            className="flex-1 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium  hover:bg-gray-50"
+                                            className="flex-1 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                                         >
                                             Edit
                                         </button>
 
                                         <button
                                             onClick={() => openAvailabilityModal(booking)}
-                                            className="inline-flex items-center justify-center rounded-md border border-gray-200 p-2  hover:bg-gray-50"
+                                            className="inline-flex items-center justify-center rounded-md border border-gray-200 p-2 text-gray-700 hover:bg-gray-50"
                                         >
                                             <Settings className="h-4 w-4" />
                                         </button>
@@ -592,23 +611,23 @@ export default function BookingsPage() {
 
             {/* AVAILABILITY TAB */}
             {activeTab === "Availability" && (
-                <div className="rounded-lg border border-gray-200  px-6 py-50 shadow-sm">
+                <div className="rounded-lg border border-gray-200 bg-white px-6 py-50 shadow-sm">
 
                 </div>
             )}
 
             {/* Add Service Modal */}
             {isServiceModalOpen && (
-                <div className="fixed left-0 right-0 top-[-30px] bottom-0 z-999 flex items-center justify-center bg-black/60 p-4">
-                    <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-xl  bg-white dark:bg-gray-dark  shadow-2xl">
+                <div className="fixed left-0 right-0 top-16 bottom-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+                    <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                            <h2 className="text-lg md:text-xl font-semibold ">
+                            <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                                 {editingBooking ? "Edit Service" : "Add New Service"}
                             </h2>
                             <button
                                 onClick={handleCloseModal}
-                                className="rounded-full p-1 "
+                                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                             >
                                 <X className="h-5 w-5" />
                             </button>
@@ -617,7 +636,7 @@ export default function BookingsPage() {
                         {/* Modal body */}
                         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
                             <div>
-                                <label className="block text-sm font-medium  mb-1">
+                                <label className="block text-sm font-medium text-gray-900 mb-1">
                                     Service Name *
                                 </label>
                                 <input
@@ -626,19 +645,19 @@ export default function BookingsPage() {
                                     placeholder="Private Golf Lesson"
                                     value={formData.serviceName}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm   focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium  mb-1">
+                                <label className="block text-sm font-medium text-gray-900 mb-1">
                                     Service Type
                                 </label>
                                 <select
                                     name="serviceType"
                                     value={formData.serviceType}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300  px-3 py-2 text-sm  focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                 >
                                     <option>Lesson</option>
                                     <option>Consultation</option>
@@ -650,7 +669,7 @@ export default function BookingsPage() {
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                    <label className="block text-sm font-medium  mb-1">
+                                    <label className="block text-sm font-medium text-gray-900 mb-1">
                                         Duration (minutes)
                                     </label>
                                     <input
@@ -660,11 +679,11 @@ export default function BookingsPage() {
                                         placeholder="60"
                                         value={formData.duration}
                                         onChange={handleInputChange}
-                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm  focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium  mb-1">
+                                    <label className="block text-sm font-medium text-gray-900 mb-1">
                                         Price ($) *
                                     </label>
                                     <input
@@ -674,13 +693,13 @@ export default function BookingsPage() {
                                         placeholder="75"
                                         value={formData.price}
                                         onChange={handleInputChange}
-                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm  focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium  mb-1">
+                                <label className="block text-sm font-medium text-gray-900 mb-1">
                                     Max Participants
                                 </label>
                                 <input
@@ -690,12 +709,12 @@ export default function BookingsPage() {
                                     placeholder="1"
                                     value={formData.maxParticipants}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm  focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium  mb-1">
+                                <label className="block text-sm font-medium text-gray-900 mb-1">
                                     Description
                                 </label>
                                 <textarea
@@ -704,7 +723,7 @@ export default function BookingsPage() {
                                     placeholder="Describe what's included in this service..."
                                     value={formData.description}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm  focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
                                 />
                             </div>
 
@@ -712,7 +731,7 @@ export default function BookingsPage() {
                                 <button
                                     type="button"
                                     onClick={handleCloseModal}
-                                    className="inline-flex items-center justify-center rounded-md border border-gray-300  px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                                 >
                                     Cancel
                                 </button>
@@ -746,10 +765,10 @@ export default function BookingsPage() {
             {/* Availability Modal */}
             {isAvailabilityOpen && availabilityBooking && (
                 <div className="fixed left-0 right-0 top-16 bottom-0 z-[120] flex items-center justify-center bg-black/60 p-6">
-                    <div className="w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden">
+                    <div className="w-full max-w-4xl rounded-xl bg-white shadow-2xl overflow-hidden">
                         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                            <h2 className="text-base md:text-lg font-semibold ">Set Availability Schedule</h2>
-                            <button onClick={closeAvailabilityModal} className="rounded-full p-1  hover:bg-gray-100 ">
+                            <h2 className="text-base md:text-lg font-semibold text-gray-900">Set Availability Schedule</h2>
+                            <button onClick={closeAvailabilityModal} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
@@ -760,7 +779,7 @@ export default function BookingsPage() {
                                     <div className="rounded-full border border-blue-200 p-2 text-blue-600">
                                         <Clock className="h-4 w-4" />
                                     </div>
-                                    <h3 className="text-md font-semibold ">Availability for {availabilityBooking.serviceName}</h3>
+                                    <h3 className="text-md font-semibold text-gray-900">Availability for {availabilityBooking.serviceName}</h3>
                                 </div>
 
                                 <div className="flex gap-8">
@@ -773,7 +792,7 @@ export default function BookingsPage() {
                                                 <button
                                                     key={d}
                                                     onClick={() => setSelectedDayIndex(idx)}
-                                                    className={`flex items-center justify-between w-full mb-2 rounded-lg px-3 py-2 text-left ${isSelected ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white" : "bg-gray-50 "}`}
+                                                    className={`flex items-center justify-between w-full mb-2 rounded-lg px-3 py-2 text-left ${isSelected ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white" : "bg-gray-50 text-gray-700"}`}
                                                 >
                                                     <span>{d}</span>
                                                     {count > 0 && <span className={`ml-2 inline-flex items-center justify-center h-6 w-6 rounded-full ${isSelected ? "bg-white text-green-700" : "bg-white text-green-700 border border-green-100"}`}>{count}</span>}
@@ -785,7 +804,7 @@ export default function BookingsPage() {
                                     {/* Right: slots for selected day */}
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-lg font-medium ">{DAYS[selectedDayIndex]}</h4>
+                                            <h4 className="text-lg font-medium text-gray-900">{DAYS[selectedDayIndex]}</h4>
                                             <button
                                                 type="button"
                                                 onClick={addSlotForSelectedDay}
@@ -807,7 +826,7 @@ export default function BookingsPage() {
                                                         {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
                                                     </select>
 
-                                                    <span className="text-sm ">to</span>
+                                                    <span className="text-sm text-gray-500">to</span>
 
                                                     <select
                                                         value={slot.end}
@@ -825,12 +844,12 @@ export default function BookingsPage() {
 
                                             {/* if no slots */}
                                             {(availabilities[availabilityBooking._id] && availabilities[availabilityBooking._id][DAYS[selectedDayIndex]]?.length === 0) && (
-                                                <div className="text-center  py-12">
-                                                    <div className="mx-auto mb-3 flex items-center justify-center rounded-full ">
+                                                <div className="text-center text-gray-500 py-12">
+                                                    <div className="mx-auto mb-3 flex items-center justify-center rounded-full bg-white text-gray-400">
                                                         <Clock className="h-12 w-12" />
                                                     </div>
                                                     <div>No availability set for {DAYS[selectedDayIndex]}</div>
-                                                    <div className="text-sm  mt-1">Click "Add Slot" to set your hours</div>
+                                                    <div className="text-sm text-gray-400 mt-1">Click "Add Slot" to set your hours</div>
                                                 </div>
                                             )}
                                         </div>
@@ -840,7 +859,7 @@ export default function BookingsPage() {
                                 <div className="mt-6 border-t border-gray-100 pt-4 flex items-center justify-end gap-3">
                                     <button
                                         onClick={() => { if (availabilityBooking) clearAllForBooking(availabilityBooking._id); }}
-                                        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium  hover:bg-gray-50"
+                                        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
                                     >
                                         Clear All
                                     </button>
