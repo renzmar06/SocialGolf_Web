@@ -1,3 +1,5 @@
+// app/api/register/route.ts (or wherever your API route is)
+
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
@@ -52,18 +54,25 @@ export async function POST(request: NextRequest) {
     const businessHours = parseJSONSafe(formData.get("businessHours") as string, {});
     const teamMembersRaw = parseJSONSafe(formData.get("teamMembers") as string, []);
 
-    // Handle file uploads
+    // File uploads
     const logoFile = formData.get("logo") as File | null;
     const verificationFile = formData.get("verificationDoc") as File | null;
+    const galleryFiles = formData.getAll("gallery") as File[]; // This gets all files with name="gallery"
 
+    // Directories
     const logoDir = path.join(process.cwd(), "public/uploads/logos");
     const docDir = path.join(process.cwd(), "public/uploads/docs");
+    const galleryDir = path.join(process.cwd(), "public/uploads/gallery");
+
     await mkdir(logoDir, { recursive: true });
     await mkdir(docDir, { recursive: true });
+    await mkdir(galleryDir, { recursive: true });
 
     let logoUrl: string | undefined;
     let verificationUrl: string | undefined;
+    const galleryUrls: string[] = [];
 
+    // Handle Logo
     if (logoFile && logoFile.size > 0) {
       const buffer = Buffer.from(await logoFile.arrayBuffer());
       const filename = `${Date.now()}-${logoFile.name.replace(/\s+/g, "_")}`;
@@ -72,6 +81,7 @@ export async function POST(request: NextRequest) {
       logoUrl = `/uploads/logos/${filename}`;
     }
 
+    // Handle Verification Doc
     if (verificationFile && verificationFile.size > 0) {
       const buffer = Buffer.from(await verificationFile.arrayBuffer());
       const filename = `${Date.now()}-${verificationFile.name.replace(/\s+/g, "_")}`;
@@ -80,14 +90,27 @@ export async function POST(request: NextRequest) {
       verificationUrl = `/uploads/docs/${filename}`;
     }
 
-    // Clean team members — no passwords stored!
+    // Handle Gallery Photos (multiple)
+    if (galleryFiles.length > 0) {
+      for (const file of galleryFiles) {
+        if (file.size === 0) continue;
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const filename = `${Date.now()}-${Math.round(Math.random() * 10000)}-${file.name.replace(/\s+/g, "_")}`;
+        const filepath = path.join(galleryDir, filename);
+        await writeFile(filepath, buffer);
+        galleryUrls.push(`/uploads/gallery/${filename}`);
+      }
+    }
+
+    // Clean team members
     const teamMembers = teamMembersRaw.map((m: any) => ({
       name: m.name?.trim() || "",
       email: m.email?.toLowerCase().trim() || "",
       role: m.role?.trim() || "Staff",
     }));
 
-    // Create main admin user (password will be hashed by User model pre-save hook)
+    // Create main admin user
     const newUser = await User.create({
       name: businessName,
       email,
@@ -95,7 +118,7 @@ export async function POST(request: NextRequest) {
       role: "admin",
     });
 
-    // Save business details
+    // Save business details including gallery
     await UserDetail.create({
       user: newUser._id,
       type: selected,
@@ -109,8 +132,9 @@ export async function POST(request: NextRequest) {
       website,
       logo: logoUrl,
       verificationDoc: verificationUrl,
+      gallery: galleryUrls, // Now saved!
       businessHours,
-      teamMembers, // Safe: no passwords
+      teamMembers,
       isVerified: false,
     });
 

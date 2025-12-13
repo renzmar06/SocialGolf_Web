@@ -1,4 +1,5 @@
 import "@/css/style.css";
+import "@/css/custom.css";
 import { Roboto } from "next/font/google";
 
 import "flatpickr/dist/flatpickr.min.css";

@@ -148,6 +148,10 @@ export function Sidebar() {
             <Calendar className="size-5" />
             <span>Promotions</span>
           </MenuLink>
+          <MenuLink href="/social-posts" isActive={pathname === "/social-posts"}>
+            <Calendar className="size-5" />
+            <span>Social Post</span>
+          </MenuLink>
         </nav>
       </div>
     </aside>

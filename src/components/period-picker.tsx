@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUpIcon } from "@/assets/icons";
+import { ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -38,7 +38,7 @@ export function PeriodPicker<TItem extends string>({
       >
         <span className="capitalize">{defaultValue || "Time Period"}</span>
 
-        <ChevronUpIcon className="size-4 rotate-180 transition-transform" />
+        <ChevronUp className="size-4 rotate-180 transition-transform" />
       </DropdownTrigger>
 
       <DropdownContent
