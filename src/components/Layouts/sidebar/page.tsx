@@ -6,7 +6,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState } from "react";
-import { Home, FileText, ChevronDown, Calendar } from "lucide-react";
+import {Home,
+  LayoutDashboard,
+  FileText,
+  Calendar,
+  CalendarCheck,
+  Megaphone,
+  Share2,
+  Store,
+  ChevronDown, } from "lucide-react";
 
 import logo from "@/assets/logos/Social-golf-logo.png";
 import darkLogo from "@/assets/logos/Social-golf-logo.png";
@@ -141,17 +149,22 @@ export function Sidebar() {
             <span>Events</span>
           </MenuLink>
           <MenuLink href="/bookings" isActive={pathname === "/bookings"}>
-            <Calendar className="size-5" />
+            <CalendarCheck className="size-5" />
             <span>Bookings</span>
           </MenuLink>
           <MenuLink href="/promotions" isActive={pathname === "/promotions"}>
-            <Calendar className="size-5" />
+            <Megaphone className="size-5" />
             <span>Promotions</span>
           </MenuLink>
           <MenuLink href="/social-posts" isActive={pathname === "/social-posts"}>
-            <Calendar className="size-5" />
+            <Share2 className="size-5" />
             <span>Social Post</span>
           </MenuLink>
+          <MenuLink href="/marketplace" isActive={pathname === "/marketplace"}>
+            <Store className="size-5" />
+            <span>Marketplace</span>
+          </MenuLink>
+          
         </nav>
       </div>
     </aside>
