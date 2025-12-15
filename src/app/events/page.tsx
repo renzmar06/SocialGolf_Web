@@ -23,6 +23,7 @@ import {
     Download,
 } from "lucide-react";
 import QRCode from "react-qr-code";
+import toast, { Toaster } from "react-hot-toast";
 
 const TABS = ["All", "Upcoming", "Drafts", "Past"] as const;
 type Tab = (typeof TABS)[number];
@@ -270,18 +271,28 @@ export default function EventsPage() {
                 await dispatch(
                     updateEvent({ id: editingEvent._id, data: submitData })
                 ).unwrap();
+                toast.success('Event updated successfully!');
             } else {
                 await dispatch(saveEvent(submitData)).unwrap();
+                toast.success('Event created successfully!');
             }
 
             handleCloseModal();
         } catch (error) {
             console.error("Failed to save event:", error);
+            toast.error(editingEvent ? 'Failed to update event' : 'Failed to create event');
         }
     };
 
     const handleDelete = (id: string) => {
-        dispatch(deleteEvent(id));
+        if (confirm('Are you sure you want to delete this event?')) {
+            try {
+                dispatch(deleteEvent(id));
+                toast.success('Event deleted successfully!');
+            } catch (error) {
+                toast.error('Failed to delete event');
+            }
+        }
     };
 
     // publish button – just updates status to "Published"
@@ -293,8 +304,10 @@ export default function EventsPage() {
                 updatedAt: new Date()
             };
             await dispatch(updateEvent({ id: event._id, data: payload })).unwrap();
+            toast.success('Event published successfully!');
         } catch (err) {
             console.error("Failed to publish:", err);
+            toast.error('Failed to publish event');
         }
     };
 
@@ -358,7 +371,9 @@ export default function EventsPage() {
         : 0;
 
     return (
-        <div className="space-y-6">
+        <>
+            <Toaster position="top-right" />
+            <div className="space-y-6">
             {/* Header row */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -1012,6 +1027,7 @@ export default function EventsPage() {
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 }
