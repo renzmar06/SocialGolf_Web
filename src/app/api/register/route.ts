@@ -1,5 +1,3 @@
-// app/api/register/route.ts (or wherever your API route is)
-
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (!email || !password || !businessName) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
-        { status: 400 }
+        { status: 200 }
       );
     }
 
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: "Email already registered" },
-        { status: 400 }
+        { status: 200 }
       );
     }
 
@@ -140,13 +138,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, message: "Account created successfully! Team invites will be sent soon." },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error: any) {
     console.error("Registration error:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Registration failed" },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

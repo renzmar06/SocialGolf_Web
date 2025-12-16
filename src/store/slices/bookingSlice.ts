@@ -92,7 +92,7 @@ const bookingSlice = createSlice({
       })
       .addCase(fetchBookings.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = action.payload;
+        state.data = action.payload.data || [];
       })
       .addCase(fetchBookings.rejected, (state, action) => {
         state.loading = false;
@@ -104,7 +104,7 @@ const bookingSlice = createSlice({
       })
       .addCase(saveBooking.fulfilled, (state, action) => {
         state.loading = false;
-        state.data.push(action.payload);
+        state.data.push(action.payload.data);
       })
       .addCase(saveBooking.rejected, (state, action) => {
         state.loading = false;
@@ -118,7 +118,7 @@ const bookingSlice = createSlice({
         state.loading = false;
         const index = state.data.findIndex(booking => booking._id === action.payload._id);
         if (index !== -1) {
-          state.data[index] = action.payload;
+          state.data[index] = action.payload.data;
         }
       })
       .addCase(updateBooking.rejected, (state, action) => {

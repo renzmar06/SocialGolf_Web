@@ -11,6 +11,7 @@ import {
   Heart,
 } from "lucide-react";
 import { Trash2 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
 const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 
@@ -159,7 +160,7 @@ export default function ProfileEditPage() {
   // -----------------
   // SUBMIT
   // -----------------
-  const onSubmit = async (e: React.FormEvent) => {
+ const onSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setIsSaving(true);
 
@@ -204,61 +205,73 @@ export default function ProfileEditPage() {
       }
     });
 
-    // Business hours & team members as JSON strings
-    formData.append("businessHours", JSON.stringify(businessData.businessHours || {}));
+    // JSON fields
+    formData.append("businessHours", JSON.stringify(businessData.businessHours));
     formData.append("teamMembers", JSON.stringify(businessData.teamMembers || []));
 
-    // Logo file
-    if (businessData.logo && businessData.logo.startsWith("data:")) {
-      // Convert base64 to Blob
-      const response = await fetch(businessData.logo);
-      const blob = await response.blob();
-      formData.append("logo", blob, "logo.png");
-    }
-
-    // Existing gallery URLs (saved ones)
+    // Existing gallery URLs (the ones we want to keep)
     formData.append("existingGallery", JSON.stringify(businessData.gallery || []));
 
-    // New gallery files
-    if (businessData.newGalleryFiles && businessData.newGalleryFiles.length > 0) {
-      businessData.newGalleryFiles.forEach((file: File) => {
-        formData.append("gallery", file);
-      });
+    // Logo file (if new one selected)
+    if (businessData.logo && businessData.logo.startsWith("data:")) {
+      // Convert data URL back to File (only if it's a new upload)
+      const response = await fetch(businessData.logo);
+      const blob = await response.blob();
+      const filename = "logo." + blob.type.split("/")[1];
+      formData.append("logo", blob, filename);
     }
 
-    // Send FormData
-    const res = await fetch("/api/profile/update-all", {
-      method: "PUT",
-      body: formData, // Important: no Content-Type header! Let browser set it
+    // New gallery files
+    (businessData.newGalleryFiles || []).forEach((file: File) => {
+      formData.append("gallery", file);
     });
 
-    if (res.ok) {
-      alert("Profile updated successfully!");
+    // ========================
+    // SEND REQUEST
+    // ========================
+    const res = await fetch("/api/profile/update-all", {
+      method: "PUT",
+      body: formData,
+    });
 
-      // Optional: Clean up new previews after save
+    const result = await res.json();
+
+    if (result.success) {
+       toast.success(result.message || "Profile updated successfully!");
+
+      // Move newly uploaded images to saved gallery and clear temp arrays
       setBusinessData((prev: any) => ({
         ...prev,
         newGalleryFiles: [],
-        newGalleryPreviews: [],
-        gallery: [...(prev.gallery || []), ...(prev.newGalleryPreviews || []).map((url: string) => url)], // move new to saved
+        newGalleryPreviews: prev.newGalleryPreviews?.map((url: string) => {
+          URL.revokeObjectURL(url);
+          return url;
+        }) || [],
+       
       }));
+
+      window.location.reload(); // Simple way
+     
     } else {
-      alert("Failed to save. Please try again.");
+       toast.error(result.message || 'Failed to save profile. Please try again.');
     }
-  } catch (err) {
-    console.error(err);
-    alert("An error occurred.");
+  } catch (error: any) {
+    console.error("Update error:", error);
+    toast.error(error.message || 'Failed to save profile. Please try again.');
   } finally {
     setIsSaving(false);
   }
+
 };
 
   // -----------------
   // RENDER
   // -----------------
   return (
+    <>
+     <Toaster position="top-right" />
     <div className="max-w-5xl mx-auto p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-4xl font-bold text-gray-800 mb-10">Edit Profile</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-10">Edit Profile</h1>
 
       <form onSubmit={onSubmit} className="space-y-10">
 
@@ -671,5 +684,6 @@ export default function ProfileEditPage() {
         </div>
       </form>
     </div>
+    </>
   );
 }
