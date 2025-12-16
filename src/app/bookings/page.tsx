@@ -16,6 +16,7 @@ import {
     Users,
     Settings,
     Trash2,
+
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -48,7 +49,7 @@ export default function BookingsPage() {
     const [activeTab, setActiveTab] = useState<Tab>("Booking Requests");
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const [editingBooking, setEditingBooking] = useState<any>(null);
-    const [currentDate, setCurrentDate] = useState(new Date()); // used as "view" date for calendar
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedStatus, setSelectedStatus] = useState("All Status");
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
@@ -129,24 +130,25 @@ export default function BookingsPage() {
         try {
             if (editingBooking) {
                 await dispatch(updateBooking({ id: editingBooking._id, data: formData })).unwrap();
-                 toast.success( "Booking Update successfully!");
+                toast.success("Service updated successfully!");
             } else {
                 await dispatch(saveBooking(formData)).unwrap();
-                toast.success( "Booking Create successfully!");
+                toast.success("Service created successfully!");
             }
 
             // refresh list so newly created/updated service appears immediately
             await dispatch(fetchBookings()).unwrap?.();
             handleCloseModal();
-        } catch (error: any) {
+        } catch (error) {
             console.error('Failed to save booking:', error);
-            toast.error(error.message || "Failed to save booking");
+            toast.error("Failed to save service. Please try again.");
         }
     };
 
     const handleDelete = async (id: string) => {
         try {
             await dispatch(deleteBooking(id)).unwrap();
+            toast.success("Service deleted successfully!");
             // refresh list after delete
             await dispatch(fetchBookings()).unwrap?.();
             // also remove availability for that booking if any
@@ -155,31 +157,27 @@ export default function BookingsPage() {
                 delete next[id];
                 return next;
             });
-            toast.success( "Booking Delete successfully!");
-        } catch (err:any) {
+        } catch (err) {
             console.error("Failed to delete booking:", err);
-            toast.error(err.message || "Failed to delete booking");
+            toast.error("Failed to delete service. Please try again.");
         }
     };
 
     const isFormValid = formData.serviceName.trim() !== "" && formData.price > 0;
 
-    // ---------- MONTH CALENDAR helpers ----------
-    // returns a 2D array: weeks[] -> days (Date | null)
+    // ---------- MONTH CALENDAR ----------
     const getMonthGrid = (viewDate: Date) => {
         const year = viewDate.getFullYear();
-        const month = viewDate.getMonth(); // 0-index
-        // start with first day of month
+        const month = viewDate.getMonth(); 
         const firstOfMonth = new Date(year, month, 1);
-        // find the Monday before/containing firstOfMonth (we use Monday as first column)
-        const firstDayIndex = (firstOfMonth.getDay() + 6) % 7; // convert Sun=0..Sat=6 -> Mon=0..Sun=6
+        const firstDayIndex = (firstOfMonth.getDay() + 6) % 7; 
         const startDate = new Date(firstOfMonth);
         startDate.setDate(firstOfMonth.getDate() - firstDayIndex);
 
         const weeks: (Date | null)[][] = [];
         let cur = new Date(startDate);
 
-        // produce 6 weeks to always have consistent grid (common calendar pattern)
+        
         for (let wk = 0; wk < 6; wk++) {
             const week: (Date | null)[] = [];
             for (let d = 0; d < 7; d++) {
@@ -258,13 +256,10 @@ export default function BookingsPage() {
             const defaultStart = TIME_OPTIONS.includes("9:00 AM") ? "9:00 AM" : TIME_OPTIONS[0];
             const defaultEnd = TIME_OPTIONS.includes("5:00 PM") ? "5:00 PM" : TIME_OPTIONS[TIME_OPTIONS.length - 1];
 
-            // create a single new slot object with unique id
             const newSlot = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, start: defaultStart, end: defaultEnd };
 
-            // simple guard: if last slot exists and has exactly same start & end, don't add another identical one
             const last = arr[arr.length - 1];
             if (last && last.start === newSlot.start && last.end === newSlot.end) {
-                // do nothing (prevents accidental duplicate adds)
                 return prev;
             }
 
@@ -322,329 +317,354 @@ export default function BookingsPage() {
             : 0;
     };
 
-    // ----------------------------------------------------
+
 
     return (
         <>
-        
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
-                        Bookings
-                    </h1>
-                    <p className="text-stone-500">
-                        Manage services and booking requests
-                    </p>
-                </div>
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-7xl mx-auto p-6">
 
-                <button
-                    onClick={openCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-blue-700 hover:to-cyan-700"
-                >
-                    <Plus className="h-4 w-4" />
-                    Add Service
-                </button>
-            </div>
-
-            {/* Tabs row */}
-            <div className="flex flex-wrap items-center gap-3">
-                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
-                    {TABS.map((tab) => {
-                        const isActive = activeTab === tab;
-                        return (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`rounded-md px-5 py-1 text-xs md:text-sm font-medium transition ${isActive
-                                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-sm"
-                                    : "text-gray-800 hover:bg-gray-100"
-                                    }`}
-                            >
-                                {tab}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className="w-48">
-                    <select
-                        value={selectedStatus}
-                        onChange={(e) => setSelectedStatus(e.target.value)}
-                        className="w-30 rounded-lg border border-gray-300 bg-white px-3 py-2 ml-10 text-sm text-gray-700 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
-                    >
-                        {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                </div>
-            </div>
-
-            {/* BOOKING REQUESTS TAB */}
-            {activeTab === "Booking Requests" && (
-                <>
-                    {/* Search + Status (moved here from Services) */}
-                    <div className="flex items-center gap-4 w-full">
-                        <div className="flex-1 md:max-w-5xl">
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search bookings..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
-                                />
-                            </div>
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">Bookings</h1>
+                            <p className="text-gray-600 mt-2">Manage services and booking requests</p>
                         </div>
+
+                        <button
+                            onClick={openCreateModal}
+                            className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-blue-700 hover:to-cyan-700"
+                        >
+                            + Add Service
+                        </button>
                     </div>
 
-                    <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-16 shadow-sm">
-                        <div className="text-center max-w-md">
-                            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100">
-                                <CalendarCheck2 className="h-12 w-12 text-gray-400" />
-                            </div>
-                            <h2 className="text-xl font-semibold text-stone-800 mb-2">
-                                No bookings found
-                            </h2>
-                            <p className="text-stone-500 max-w-sm mb-6">
-                                Bookings will appear here when customers book your services
-                            </p>
-                        </div>
-                    </div>
-                </>
-            )}
 
-            {/* CALENDAR VIEW TAB */}
-            {activeTab === "Calendar View" && (
-                <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-                    <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                        <h2 className="text-base md:text-lg font-semibold text-gray-900">
-                            {getMonthYear()}
-                        </h2>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={goToPreviousMonth}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </button>
-                            <button
-                                onClick={goToToday}
-                                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-gray-800 hover:bg-gray-50"
-                            >
-                                Today
-                            </button>
-                            <button
-                                onClick={goToNextMonth}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </button>
-                        </div>
-                    </div>
 
-                    <div className="px-6 py-6 space-y-6">
-                        {/* Month grid header - weekdays */}
-                        <div className="grid grid-cols-7 gap-3 text-xs text-gray-500 px-2">
-                            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                                <div key={d} className="text-center font-medium">
-                                    {d}
-                                </div>
+                    {/* Tabs */}
+                    <div className="flex justify-between items-center border-b border-gray-200 mb-8">
+                        <div className="flex gap-8">
+                            {TABS.map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab
+                                        ? "border-teal-500 text-teal-600"
+                                        : "border-transparent text-gray-500 hover:text-gray-700"
+                                        }`}
+                                >
+                                    {tab}
+                                </button>
                             ))}
                         </div>
 
-                        {/* Month grid */}
-                        <div className="grid grid-cols-7 gap-3 px-2">
-                            {monthGrid.map((week, wi) =>
-                                week.map((day, di) => {
-                                    if (!day) return null;
-                                    const isSameMonth = day.getMonth() === currentDate.getMonth();
-                                    const isToday = day.toDateString() === new Date().toDateString();
-                                    const isSelected = day.toDateString() === selectedDate.toDateString();
+                        {/* Status Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                                className="inline-flex items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 -mt-5 text-sm font-medium text-gray-700 hover:bg-gray-50 min-w-[120px]"
+                            >
+                                {selectedStatus}
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
 
-                                    return (
-                                        <button
-                                            key={`${wi}-${di}`}
-                                            onClick={() => selectDate(day)}
-                                            className={`min-h-[56px] rounded-lg border p-3 text-left transition-colors ${isSelected
-                                                    ? "border-blue-500 bg-gradient-to-r from-blue-50 to-cyan-50"
-                                                    : "border-gray-300 bg-white"
-                                                } ${!isSameMonth ? "opacity-40" : ""}`}
-                                        >
-                                            <div className="flex items-start justify-between">
-                                                <div className="text-xs text-gray-500">{/* empty to align */}</div>
-                                                {isToday ? (
-                                                    <div className="ml-2 -mt-1 flex items-center justify-center h-6 w-6 rounded-full bg-amber-500 text-white font-semibold text-sm">
-                                                        {day.getDate()}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-lg font-semibold text-gray-900">
-                                                        {day.getDate()}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* space for possible events summary (kept empty) */}
-                                            <div className="mt-3 text-sm text-gray-500">
-                                                {/* future: event count or small dots */}
-                                            </div>
-                                        </button>
-                                    );
-                                })
+                            {isStatusDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-30 rounded-md bg-white shadow-lg border border-gray-200 z-10">
+                                    <div className="py-1">
+                                        {statusOptions.map((status) => (
+                                            <button
+                                                key={status}
+                                                onClick={() => {
+                                                    setSelectedStatus(status);
+                                                    setIsStatusDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedStatus === status ? "bg-blue-50 text-blue-700" : "text-gray-700"
+                                                    }`}
+                                            >
+                                                {status}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
                         </div>
+                    </div>
 
-                        <div className="border-t border-gray-100 pt-6">
-                            <p className="font-semibold text-stone-800 mb-4">
-                                {getSelectedDateString()}
-                            </p>
-                            <p className="text-stone-500 text-center py-10">
-                                No bookings for this day
-                            </p>
+                    {/* Search Input */}
+                    <div className="mb-6 w-full">
+                        <div className="relative">
+                            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
+                            <input
+                                type="text"
+                                placeholder="Search bookings..."
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
                     </div>
-                </div>
-            )}
 
-            {/* SERVICES TAB */}
-            {activeTab === "Services" && (
-                <>
-                    {/* Services grid or empty state */}
-                    {bookings.length === 0 ? (
-                        <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-16 shadow-sm">
-                            <div className="text-center max-w-md">
-                                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100">
-                                    <GraduationCap className="h-10 w-10 text-gray-400" />
+                    {/* BOOKING REQUESTS TAB */}
+                    {activeTab === "Booking Requests" && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-20 text-center">
+                            <div className="max-w-md mx-auto">
+                                <div className="w-24 h-24 mx-auto mb-6 bg-gray-200 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center">
+                                    <CalendarCheck2 className="h-12 w-12 text-gray-400" />
                                 </div>
-                                <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                                    No services yet
-                                </h2>
-                                <p className="text-sm text-gray-600 mb-6">
-                                    Create services that golfers can book
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    No bookings found
+                                </h3>
+                                <p className="text-gray-600 mt-3">
+                                    Bookings will appear here when customers book your services
                                 </p>
-                                <button
-                                    onClick={openCreateModal}
-                                    className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:from-blue-700 hover:to-cyan-700"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Add Service
-                                </button>
                             </div>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {bookings.map((booking: any) => (
-                                <div
-                                    key={booking._id}
-                                    className="relative bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col cursor-default"
-                                >
-                                    {/* top row: avatar + active pill */}
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                                                <Users className="h-6 w-6 text-blue-600" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-md font-semibold text-gray-900">
-                                                    {booking.serviceName}
-                                                </h3>
-                                                <p className="text-sm text-gray-500">
-                                                    {booking.serviceType}
-                                                </p>
-                                            </div>
-                                        </div>
+                    )}
 
-                                        <div className="flex items-center gap-3">
-                                            <span className="inline-flex items-center rounded-lg px-3 py-1 text-xs font-medium bg-green-100 text-green-700 border border-green-100">
-                                                active
-                                            </span>
-                                        </div>
-                                    </div>
+                    {/* CALENDAR VIEW TAB */}
+                    {activeTab === "Calendar View" && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                            <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                                <h2 className="text-base md:text-lg font-semibold text-gray-900">
+                                    {getMonthYear()}
+                                </h2>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={goToPreviousMonth}
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={goToToday}
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                    >
+                                        Today
+                                    </button>
+                                    <button
+                                        onClick={goToNextMonth}
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
 
-                                    {/* description */}
-                                    {booking.description && (
-                                        <p className="text-sm text-gray-500 mt-4">
-                                            {booking.description}
-                                        </p>
+                            <div className="px-6 py-6 space-y-6">
+                                {/* Month grid header - weekdays */}
+                                <div className="grid grid-cols-7 gap-3 text-xs text-gray-500 px-2">
+                                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                                        <div key={d} className="text-center font-medium">
+                                            {d}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Month grid */}
+                                <div className="grid grid-cols-7 gap-3 px-2">
+                                    {monthGrid.map((week, wi) =>
+                                        week.map((day, di) => {
+                                            if (!day) return null;
+                                            const isSameMonth = day.getMonth() === currentDate.getMonth();
+                                            const isToday = day.toDateString() === new Date().toDateString();
+                                            const isSelected = day.toDateString() === selectedDate.toDateString();
+
+                                            return (
+                                                <button
+                                                    key={`${wi}-${di}`}
+                                                    onClick={() => selectDate(day)}
+                                                    className={`min-h-[56px] rounded-lg border p-3 text-left transition-colors ${isSelected
+                                                        ? "border-blue-500 bg-gradient-to-r from-blue-50 to-cyan-50"
+                                                        : "border-gray-300 bg-white"
+                                                        } ${!isSameMonth ? "opacity-40" : ""}`}
+                                                >
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="text-xs text-gray-500"></div>
+                                                        {isToday ? (
+                                                            <div className="ml-2 -mt-1 flex items-center justify-center h-6 w-6 rounded-full bg-amber-500 text-white font-semibold text-sm">
+                                                                {day.getDate()}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-lg font-semibold text-gray-900">
+                                                                {day.getDate()}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="mt-3 text-sm text-gray-500">
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
                                     )}
+                                </div>
 
-                                    {/* meta row: duration, participants, price */}
-                                    <div className="mt-6 flex items-center justify-between text-sm text-gray-600">
-                                        <div className="flex items-center gap-6">
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-gray-400" />
-                                                <span>{booking.duration} min</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4 text-gray-400" />
-                                                <span>{booking.maxParticipants}</span>
-                                            </div>
+                                <div className="border-t border-gray-100 pt-6">
+                                    <p className="font-semibold text-stone-800 mb-4">
+                                        {getSelectedDateString()}
+                                    </p>
+                                    <p className="text-stone-500 text-center py-10">
+                                        No bookings for this day
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SERVICES TAB */}
+                    {activeTab === "Services" && (
+                        <>
+                            {/* Services grid or empty state */}
+                            {bookings.length === 0 ? (
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-20 text-center">
+                                    <div className="max-w-md mx-auto">
+                                        <div className="w-24 h-24 mx-auto mb-6 bg-gray-200 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center">
+                                            <GraduationCap className="h-10 w-10 text-gray-400" />
                                         </div>
-
-                                        <div className="text-blue-700 font-semibold">
-                                            ${booking.price}
-                                        </div>
-                                    </div>
-
-                                    {/* footer actions */}
-                                    <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3">
+                                        <h3 className="text-xl font-semibold text-gray-900">
+                                            No services yet
+                                        </h3>
+                                        <p className="text-gray-600 mt-3">
+                                            Create services that golfers can book
+                                        </p>
                                         <button
-                                            onClick={() => openEditModal(booking)}
-                                            className="flex-1 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                            onClick={openCreateModal}
+                                            className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:from-blue-700 hover:to-cyan-700"
                                         >
-                                            Edit
-                                        </button>
-
-                                        <button
-                                            onClick={() => openAvailabilityModal(booking)}
-                                            className="inline-flex items-center justify-center rounded-md border border-gray-200 p-2 text-gray-700 hover:bg-gray-50"
-                                        >
-                                            <Settings className="h-4 w-4" />
-                                        </button>
-
-                                        <button
-                                            onClick={() => handleDelete(booking._id)}
-                                            className="inline-flex items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-                                        >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete
+                                            <Plus className="h-4 w-4" />
+                                            Add Service
                                         </button>
                                     </div>
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {bookings.map((booking: any) => (
+                                        <div
+                                            key={booking._id}
+                                            className="relative bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col cursor-default"
+                                        >
+                                            {/* top row: avatar + active pill */}
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                                                        <Users className="h-6 w-6 text-blue-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-md font-semibold text-gray-900">
+                                                            {booking.serviceName}
+                                                        </h3>
+                                                        <p className="text-sm text-gray-500">
+                                                            {booking.serviceType}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    <span className="inline-flex items-center rounded-lg px-3 py-1 text-xs font-medium bg-green-100 text-green-700 border border-green-100">
+                                                        active
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* description */}
+                                            {booking.description && (
+                                                <p className="text-sm text-gray-500 mt-4">
+                                                    {booking.description}
+                                                </p>
+                                            )}
+
+                                            {/* meta row: duration, participants, price */}
+                                            <div className="mt-6 flex items-center justify-between text-sm text-gray-600">
+                                                <div className="flex items-center gap-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="h-4 w-4 text-gray-400" />
+                                                        <span>{booking.duration} min</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Users className="h-4 w-4 text-gray-400" />
+                                                        <span>{booking.maxParticipants}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-blue-700 font-semibold">
+                                                    ${booking.price}
+                                                </div>
+                                            </div>
+
+                                            {/* footer actions */}
+                                            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3">
+                                                <button
+                                                    onClick={() => openEditModal(booking)}
+                                                    className="flex-1 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    Edit
+                                                </button>
+
+                                                <button
+                                                    onClick={() => openAvailabilityModal(booking)}
+                                                    className="inline-flex items-center justify-center rounded-md border border-gray-200 p-2 text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    <Settings className="h-4 w-4" />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDelete(booking._id)}
+                                                    className="inline-flex items-center justify-center rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* AVAILABILITY TAB */}
+                    {activeTab === "Availability" && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-50 text-center">
+                            {/* <div className="max-w-md mx-auto">
+                                <div className="w-24 h-24 mx-auto mb-6 bg-gray-200 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center">
+                                    <Clock className="h-12 w-12 text-gray-400" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    Availability Settings
+                                </h3>
+                                <p className="text-gray-600 mt-3">
+                                    Set your availability from the Services tab
+                                </p>
+                            </div> */}
                         </div>
                     )}
-                </>
-            )}
-
-            {/* AVAILABILITY TAB */}
-            {activeTab === "Availability" && (
-                <div className="rounded-lg border border-gray-200 bg-white px-6 py-50 shadow-sm">
 
                 </div>
-            )}
+            </div>
 
             {/* Add Service Modal */}
             {isServiceModalOpen && (
-                <div className="fixed left-0 right-0 top-16 bottom-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-                    <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-2xl">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
                         {/* Modal header */}
-                        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                            <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-semibold text-gray-900">
                                 {editingBooking ? "Edit Service" : "Add New Service"}
                             </h2>
                             <button
                                 onClick={handleCloseModal}
-                                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
                             >
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
 
                         {/* Modal body */}
-                        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Service Name *
                                 </label>
                                 <input
@@ -653,19 +673,19 @@ export default function BookingsPage() {
                                     placeholder="Private Golf Lesson"
                                     value={formData.serviceName}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Service Type
                                 </label>
                                 <select
                                     name="serviceType"
                                     value={formData.serviceType}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 >
                                     <option>Lesson</option>
                                     <option>Consultation</option>
@@ -677,7 +697,7 @@ export default function BookingsPage() {
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Duration (minutes)
                                     </label>
                                     <input
@@ -687,11 +707,11 @@ export default function BookingsPage() {
                                         placeholder="60"
                                         value={formData.duration}
                                         onChange={handleInputChange}
-                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Price ($) *
                                     </label>
                                     <input
@@ -701,13 +721,13 @@ export default function BookingsPage() {
                                         placeholder="75"
                                         value={formData.price}
                                         onChange={handleInputChange}
-                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Max Participants
                                 </label>
                                 <input
@@ -717,12 +737,12 @@ export default function BookingsPage() {
                                     placeholder="1"
                                     value={formData.maxParticipants}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Description
                                 </label>
                                 <textarea
@@ -731,33 +751,23 @@ export default function BookingsPage() {
                                     placeholder="Describe what's included in this service..."
                                     value={formData.description}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
                             </div>
 
-                            <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 pb-2 sm:flex-row sm:justify-end">
+                            <div className="flex gap-3 pt-4">
                                 <button
                                     type="button"
                                     onClick={handleCloseModal}
-                                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                 >
                                     Cancel
                                 </button>
 
-                                {editingBooking && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDelete(editingBooking._id)}
-                                        className="inline-flex items-center justify-center rounded-md bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700"
-                                    >
-                                        Delete
-                                    </button>
-                                )}
-
                                 <button
                                     type="submit"
                                     disabled={!isFormValid}
-                                    className={`inline-flex items-center justify-center rounded-md px-5 py-2 text-sm font-medium shadow-sm transition ${isFormValid
+                                    className={`flex-1 px-4 py-2 rounded-md transition ${isFormValid
                                         ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
                                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                                         }`}
@@ -772,18 +782,18 @@ export default function BookingsPage() {
 
             {/* Availability Modal */}
             {isAvailabilityOpen && availabilityBooking && (
-                <div className="fixed left-0 right-0 top-16 bottom-0 z-[120] flex items-center justify-center bg-black/60 p-6">
-                    <div className="w-full max-w-4xl rounded-xl bg-white shadow-2xl overflow-hidden">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                            <h2 className="text-base md:text-lg font-semibold text-gray-900">Set Availability Schedule</h2>
-                            <button onClick={closeAvailabilityModal} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                            <h2 className="text-lg font-semibold text-gray-900">Set Availability Schedule</h2>
+                            <button onClick={closeAvailabilityModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
 
-                        <div className="p-4">
+                        <div className="p-6">
                             <div className="rounded-lg border border-gray-100 p-4">
-                                <div className="flex items-center gap-3 mb-3">
+                                <div className="flex items-center gap-3 mb-6">
                                     <div className="rounded-full border border-blue-200 p-2 text-blue-600">
                                         <Clock className="h-4 w-4" />
                                     </div>
@@ -884,8 +894,8 @@ export default function BookingsPage() {
                     </div>
                 </div>
             )}
-        </div>
-        <Toaster position="top-right" />
+
+            <Toaster position="top-right" />
         </>
     );
 }

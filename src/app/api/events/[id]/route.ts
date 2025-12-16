@@ -33,7 +33,11 @@ export async function PUT(
     const { id } = await context.params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: "Invalid event ID" }, { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Invalid event ID",
+        data: null
+      }, { status: 400 });
     }
 
     const data = await request.json();
@@ -41,13 +45,25 @@ export async function PUT(
     const event = await Event.findByIdAndUpdate(id, { ...data, updatedAt: new Date() }, { new: true });
 
     if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: "Event not found",
+        data: null
+      }, { status: 404 });
     }
 
-    return NextResponse.json(event);
+    return NextResponse.json({
+      success: true,
+      message: "Event updated successfully",
+      data: event
+    });
   } catch (error) {
     console.error("PUT ERROR:", error);
-    return NextResponse.json({ error: "Failed to update event" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Failed to update event",
+      data: null
+    }, { status: 500 });
   }
 }
 
@@ -58,19 +74,35 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     const { id } = await context.params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'Invalid event ID' }, { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid event ID',
+        data: null
+      }, { status: 400 });
     }
 
     const event = await Event.findByIdAndDelete(id);
 
     if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: 'Event not found',
+        data: null
+      }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Event deleted successfully' });
+    return NextResponse.json({
+      success: true,
+      message: 'Event deleted successfully',
+      data: { id }
+    });
 
   } catch (error) {
     console.error("DELETE ERROR:", error);
-    return NextResponse.json({ error: 'Failed to delete event' }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to delete event',
+      data: null
+    }, { status: 500 });
   }
 }

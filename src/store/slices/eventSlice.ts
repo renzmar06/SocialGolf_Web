@@ -38,7 +38,11 @@ export const saveEvent = createAsyncThunk(
   async (eventData: Omit<Event, '_id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
     try {
       const response = await axios.post('/api/events', eventData);
-      return response.data;
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to save event');
     }
@@ -50,7 +54,11 @@ export const fetchEvents = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get('/api/events');
-      return response.data;
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch events');
     }
@@ -61,8 +69,12 @@ export const deleteEvent = createAsyncThunk(
   'event/delete',
   async (id: string, { rejectWithValue }) => {
     try {
-      await axios.delete(`/api/events/${id}`);
-      return id;
+      const response = await axios.delete(`/api/events/${id}`);
+      if (response.data.success) {
+        return id;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete event');
     }
@@ -74,7 +86,11 @@ export const updateEvent = createAsyncThunk(
   async ({ id, data }: { id: string; data: Partial<Event> }, { rejectWithValue }) => {
     try {
       const response = await axios.put(`/api/events/${id}`, data);
-      return response.data;
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update event');
     }

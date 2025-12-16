@@ -28,10 +28,18 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const booking = new Booking(data);
     await booking.save();
-    return NextResponse.json(booking);
+    return NextResponse.json({
+      success: true,
+      message: "Booking created successfully",
+      data: booking
+    });
   } catch (error) {
     console.error("API Error:", error);
-    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Failed to create booking",
+      data: null
+    }, { status: 500 });
   }
 }
 
@@ -39,9 +47,17 @@ export async function GET() {
   try {
     await connectDB();
     const bookings = await Booking.find({}).sort({ createdAt: -1 });
-    return NextResponse.json(bookings);
+    return NextResponse.json({
+      success: true,
+      message: "Bookings fetched successfully",
+      data: bookings
+    });
   } catch (error) {
     console.error("API Error:", error);
-    return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch bookings",
+      data: []
+    }, { status: 500 });
   }
 }

@@ -32,7 +32,11 @@ export async function PUT(
     const { id } = await context.params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: "Invalid booking ID",
+        data: null
+      }, { status: 400 });
     }
 
     const data = await request.json();
@@ -40,13 +44,25 @@ export async function PUT(
     const booking = await Booking.findByIdAndUpdate(id, { ...data, updatedAt: new Date() }, { new: true });
 
     if (!booking) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: "Booking not found",
+        data: null
+      }, { status: 404 });
     }
 
-    return NextResponse.json(booking);
+    return NextResponse.json({
+      success: true,
+      message: "Booking updated successfully",
+      data: booking
+    });
   } catch (error) {
     console.error("PUT ERROR:", error);
-    return NextResponse.json({ error: "Failed to update booking" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Failed to update booking",
+      data: null
+    }, { status: 500 });
   }
 }
 
@@ -57,19 +73,35 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     const { id } = await context.params;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid booking ID',
+        data: null
+      }, { status: 400 });
     }
 
     const booking = await Booking.findByIdAndDelete(id);
 
     if (!booking) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      return NextResponse.json({
+        success: false,
+        message: 'Booking not found',
+        data: null
+      }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Booking deleted successfully' });
+    return NextResponse.json({
+      success: true,
+      message: 'Booking deleted successfully',
+      data: { id }
+    });
 
   } catch (error) {
     console.error("DELETE ERROR:", error);
-    return NextResponse.json({ error: 'Failed to delete booking' }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to delete booking',
+      data: null
+    }, { status: 500 });
   }
 }

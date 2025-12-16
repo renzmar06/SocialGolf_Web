@@ -29,10 +29,18 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const event = new Event(data);
     await event.save();
-    return NextResponse.json(event);
+    return NextResponse.json({
+      success: true,
+      message: "Event created successfully",
+      data: event
+    });
   } catch (error) {
     console.error("API Error:", error);
-    return NextResponse.json({ error: "Failed to create event" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Failed to create event",
+      data: null
+    }, { status: 500 });
   }
 }
 
@@ -40,9 +48,17 @@ export async function GET() {
   try {
     await connectDB();
     const events = await Event.find({}).sort({ createdAt: -1 });
-    return NextResponse.json(events);
+    return NextResponse.json({
+      success: true,
+      message: "Events fetched successfully",
+      data: events
+    });
   } catch (error) {
     console.error("API Error:", error);
-    return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Failed to fetch events",
+      data: []
+    }, { status: 500 });
   }
 }

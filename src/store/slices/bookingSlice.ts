@@ -30,7 +30,11 @@ export const saveBooking = createAsyncThunk(
   async (bookingData: Omit<Booking, '_id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
     try {
       const response = await axios.post('/api/bookings', bookingData);
-      return response.data;
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to save booking');
     }
@@ -42,7 +46,11 @@ export const fetchBookings = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get('/api/bookings');
-      return response.data;
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');
     }
@@ -53,8 +61,12 @@ export const deleteBooking = createAsyncThunk(
   'booking/delete',
   async (id: string, { rejectWithValue }) => {
     try {
-      await axios.delete(`/api/bookings/${id}`);
-      return id;
+      const response = await axios.delete(`/api/bookings/${id}`);
+      if (response.data.success) {
+        return id;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete booking');
     }
@@ -66,7 +78,11 @@ export const updateBooking = createAsyncThunk(
   async ({ id, data }: { id: string; data: Partial<Booking> }, { rejectWithValue }) => {
     try {
       const response = await axios.put(`/api/bookings/${id}`, data);
-      return response.data;
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data.message);
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update booking');
     }
