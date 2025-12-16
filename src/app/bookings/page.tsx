@@ -17,6 +17,7 @@ import {
     Settings,
     Trash2,
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
 const TABS = ["Booking Requests", "Calendar View", "Services", "Availability"] as const;
 type Tab = (typeof TABS)[number];
@@ -128,15 +129,18 @@ export default function BookingsPage() {
         try {
             if (editingBooking) {
                 await dispatch(updateBooking({ id: editingBooking._id, data: formData })).unwrap();
+                 toast.success( "Booking Update successfully!");
             } else {
                 await dispatch(saveBooking(formData)).unwrap();
+                toast.success( "Booking Create successfully!");
             }
 
             // refresh list so newly created/updated service appears immediately
             await dispatch(fetchBookings()).unwrap?.();
             handleCloseModal();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to save booking:', error);
+            toast.error(error.message || "Failed to save booking");
         }
     };
 
@@ -151,8 +155,10 @@ export default function BookingsPage() {
                 delete next[id];
                 return next;
             });
-        } catch (err) {
+            toast.success( "Booking Delete successfully!");
+        } catch (err:any) {
             console.error("Failed to delete booking:", err);
+            toast.error(err.message || "Failed to delete booking");
         }
     };
 
@@ -319,6 +325,8 @@ export default function BookingsPage() {
     // ----------------------------------------------------
 
     return (
+        <>
+        
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -877,5 +885,7 @@ export default function BookingsPage() {
                 </div>
             )}
         </div>
+        <Toaster position="top-right" />
+        </>
     );
 }

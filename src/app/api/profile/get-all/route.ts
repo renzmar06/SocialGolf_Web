@@ -11,20 +11,20 @@ export async function GET(request: NextRequest) {
 
     const token = request.cookies.get("token")?.value;
     if (!token) {
-      return NextResponse.json({ error: "No token" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "No token" }, { status: 401 });
     }
 
     const decoded = verifyToken(token);
     if (!decoded || !decoded.userId) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 401 });
     }
 
     const user = await User.findById(decoded.userId).select("-password");
     const userDetail = await UserDetail.findOne({ user: decoded.userId });
 
-    return NextResponse.json({ user, userDetail }, { status: 200 });
+    return NextResponse.json({ success: true, message: "Profile fetched successfully", user, userDetail }, { status: 200 });
   } catch (error) {
     console.error("Error in profile/get-all:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
   }
 }
