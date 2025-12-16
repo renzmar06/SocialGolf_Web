@@ -3,6 +3,7 @@ import userReducer from "./slices/userSlice";
 import eventReducer from "./slices/eventSlice";
 import bookingReducer from "./slices/bookingSlice";
 import socialPostReducer from "./slices/socialPostSlice";
+import promotionReducer from "./slices/promotionSlice";
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     event: eventReducer,
     booking: bookingReducer,
     socialPost: socialPostReducer,
+    promotion: promotionReducer,
   },
 });
 
