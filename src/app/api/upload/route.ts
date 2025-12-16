@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const files: File[] = data.getAll("images") as unknown as File[];
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No files received" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "No files received" }, { status: 400 });
     }
 
     const urls: string[] = [];
@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
       urls.push(`/uploads/${filename}`);
     }
 
-    return NextResponse.json({ urls });
+    return NextResponse.json({ success: true, message: "Files uploaded successfully", urls });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Upload failed" }, { status: 500 });
   }
 }

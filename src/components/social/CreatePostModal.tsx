@@ -101,7 +101,9 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, initialData
                 
                 if (uploadRes.ok) {
                     const uploadData = await uploadRes.json();
-                    imageUrls = [...imageUrls, ...uploadData.urls];
+                    if (uploadData.success) {
+                        imageUrls = [...imageUrls, ...uploadData.urls];
+                    }
                 }
             }
             
