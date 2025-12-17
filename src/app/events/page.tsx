@@ -79,7 +79,7 @@ export default function EventsPage() {
 
     // Load Google Maps API
     useEffect(() => {
-        if (!window.google) {
+        if (!window.google && !document.querySelector('script[src*="maps.googleapis.com"]')) {
             const script = document.createElement('script');
             script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_MAP_API_KEY || 'AIzaSyDkdvQ-Qr14JYjH9qV3l15YB4uGvOn-mFs'}&libraries=places`;
             script.async = true;
@@ -142,6 +142,7 @@ export default function EventsPage() {
         }
 
         if (event.coverImage) {
+            // If it's a URL, use it directly; if it's base64, use it as preview
             setImagePreview(event.coverImage);
         }
         setIsModalOpen(true);
@@ -154,20 +155,44 @@ export default function EventsPage() {
         setImagePreview(null);
     };
 
-    const handleFileSelect = (file: File) => {
+    const handleFileSelect = async (file: File) => {
         if (
             file &&
             (file.type === "image/png" || file.type === "image/jpeg") &&
             file.size <= 10 * 1024 * 1024
         ) {
             setSelectedImage(file);
+
+            // Create preview
             const reader = new FileReader();
             reader.onload = (e) => {
                 const result = e.target?.result as string;
                 setImagePreview(result);
-                setFormData((prev) => ({ ...prev, coverImage: result }));
             };
             reader.readAsDataURL(file);
+
+            // Upload file to server
+            try {
+                const formData = new FormData();
+                formData.append('images', file);
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.urls && result.urls.length > 0) {
+                    setFormData((prev) => ({ ...prev, coverImage: result.urls[0] }));
+                    toast.success('Image uploaded successfully!');
+                } else {
+                    toast.error('Failed to upload image');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                toast.error('Failed to upload image');
+            }
         }
     };
 
@@ -271,27 +296,26 @@ export default function EventsPage() {
                 await dispatch(
                     updateEvent({ id: editingEvent._id, data: submitData })
                 ).unwrap();
-                toast.success('Event updated successfully!');
+                toast.success("Event updated successfully!");
             } else {
                 await dispatch(saveEvent(submitData)).unwrap();
-                toast.success('Event created successfully!');
+                toast.success("Event created successfully!");
             }
 
             handleCloseModal();
         } catch (error) {
             console.error("Failed to save event:", error);
-            toast.error(editingEvent ? 'Failed to update event' : 'Failed to create event');
+            toast.error("Failed to save event. Please try again.");
         }
     };
 
-    const handleDelete = (id: string) => {
-        if (confirm('Are you sure you want to delete this event?')) {
-            try {
-                dispatch(deleteEvent(id));
-                toast.success('Event deleted successfully!');
-            } catch (error) {
-                toast.error('Failed to delete event');
-            }
+    const handleDelete = async (id: string) => {
+        try {
+            await dispatch(deleteEvent(id)).unwrap();
+            toast.success("Event deleted successfully!");
+        } catch (error) {
+            console.error("Failed to delete event:", error);
+            toast.error("Failed to delete event. Please try again.");
         }
     };
 
@@ -304,10 +328,10 @@ export default function EventsPage() {
                 updatedAt: new Date()
             };
             await dispatch(updateEvent({ id: event._id, data: payload })).unwrap();
-            toast.success('Event published successfully!');
+            toast.success("Event published successfully!");
         } catch (err) {
             console.error("Failed to publish:", err);
-            toast.error('Failed to publish event');
+            toast.error("Failed to publish event. Please try again.");
         }
     };
 
@@ -370,80 +394,38 @@ export default function EventsPage() {
         ? participantsEvent.participants.length
         : 0;
 
+    // Filter events based on active tab
+    const filteredEvents = events.filter((event: any) => {
+        const statusLower = (event.status || "").toLowerCase();
+        const eventDate = event.date ? new Date(event.date) : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        switch (activeTab) {
+            case "Drafts":
+                return statusLower === "draft";
+            case "Past":
+                return eventDate && eventDate < today;
+            case "Upcoming":
+                return eventDate && eventDate >= today && statusLower === "published";
+            case "All":
+            default:
+                return true;
+        }
+    });
+
     return (
         <>
-            <Toaster position="top-right" />
-            <div className="space-y-6">
-            {/* Header row */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
-                        Events
-                    </h1>
-                    <p className="text-stone-500">
-                        Create and manage your golf events
-                    </p>
-                </div>
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-7xl mx-auto p-6">
 
-                <button
-                    onClick={openCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-blue-700 hover:to-cyan-700"
-                >
-                    <Plus className="h-4 w-4" />
-                    Create Event
-                </button>
-            </div>
-
-            <div className="space-y-3">
-                {/* Tabs row */}
-                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
-                    {TABS.map((tab) => {
-                        const isActive = activeTab === tab;
-                        return (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`rounded-md px-5 py-1 text-xs md:text-sm font-medium transition ${isActive
-                                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-sm"
-                                    : "text-gray-700 hover:bg-gray-100 "
-                                    }`}
-                            >
-                                {tab}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Search row (below tabs) */}
-                <div className="flex items-center gap-4">
-                    <div className="flex-1 md:max-w-8xl w-full">
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search events..."
-                                className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
-                            />
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">Events</h1>
+                            <p className="text-gray-600 mt-2">Create and manage your golf events</p>
                         </div>
-                    </div>
 
-                    {/* (Kept layout flexible — no additional dropdown added per your request) */}
-                </div>
-            </div>
-
-            {/* Events grid or empty state */}
-            {events.length === 0 ? (
-                <div className="flex min-h-[380px] items-center justify-center rounded-3xl border border-gray-200 bg-white px-4 py-16 shadow-sm">
-                    <div className="text-center max-w-md">
-                        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100">
-                            <Calendar className="h-12 w-12 text-gray-400" />
-                        </div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                            No events yet
-                        </h2>
-                        <p className="text-sm text-gray-600 mb-6">
-                            Create your first event to start engaging with golfers
-                        </p>
                         <button
                             onClick={openCreateModal}
                             className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-blue-700 hover:to-cyan-700"
@@ -452,152 +434,208 @@ export default function EventsPage() {
                             Create Event
                         </button>
                     </div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {events.map((event: any) => {
-                        const statusLower = (event.status || "").toLowerCase();
-                        const isDraft = statusLower === "draft";
-                        const isPublished = statusLower === "published";
 
-                        return (
-                            <div
-                                key={event._id}
-                                className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col"
-                            >
-                                {/* Image + badges + hover actions */}
-                                <div className="relative group h-56 w-full overflow-hidden">
-                                    {event.coverImage ? (
-                                        <img
-                                            src={event.coverImage}
-                                            alt={event.title}
-                                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                        />
-                                    ) : (
-                                        <div className="h-full w-full bg-gradient-to-tr from-blue-200 via-blue-500 to-cyan-500" />
-                                    )}
+                    {/* Tabs */}
+                    <div className="flex gap-8 border-b border-gray-200 mb-8">
+                        {TABS.map((tab) => {
+                            const isActive = activeTab === tab;
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`pb-4 px-1 border-b-2 font-medium text-sm ${isActive
+                                        ? "border-teal-500 text-teal-600"
+                                        : "border-transparent text-gray-500 hover:text-gray-700"
+                                        }`}
+                                >
+                                    {tab}
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                                    {/* Status + type pills */}
-                                    <div className="absolute left-4 top-4 flex items-center gap-2">
-                                        <span
-                                            className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize ${isDraft
-                                                ? "bg-amber-500 text-white"
-                                                : isPublished
-                                                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
-                                                    : "bg-gray-600 text-white"
-                                                }`}
-                                        >
-                                            {statusLower || "draft"}
-                                        </span>
-                                        {event.eventType && (
-                                            <span className="rounded-lg bg-white/90 px-3 py-1 text-xs font-medium text-gray-900 shadow-sm">
-                                                {event.eventType}
-                                            </span>
-                                        )}
-                                    </div>
+                    {/* Search Input */}
+                    <div className="mb-6 w-full">
+                        <div className="relative">
+                            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
+                            <input
+                                type="text"
+                                placeholder="Search events..."
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            />
+                        </div>
+                    </div>
 
-                                    {/* Hover edit/delete buttons */}
-                                    <div className="absolute right-4 top-4 flex flex-col gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                        <button
-                                            type="button"
-                                            onClick={() => openEditModal(event)}
-                                            className="inline-flex items-center justify-center rounded-full bg-white/95 p-2 shadow-sm hover:bg-cyan-50"
-                                        >
-                                            <Edit2 className="h-4 w-4 text-gray-800" />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDelete(event._id)}
-                                            className="inline-flex items-center justify-center rounded-full bg-white/95 p-2 shadow-sm hover:bg-red-50"
-                                        >
-                                            <Trash2 className="h-4 w-4 text-red-600" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Content */}
-                                <div className="px-6 pt-5 pb-4 flex-1 flex flex-col">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                        {event.title || "Golf Tournament"}
+                    {/* Events Content */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                        {loading ? (
+                            <div className="p-20 text-center">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div>
+                                <p className="text-gray-600 mt-4">Loading events...</p>
+                            </div>
+                        ) : filteredEvents.length === 0 ? (
+                            <div className="p-20 text-center">
+                                <div className="max-w-md mx-auto">
+                                    <div className="w-24 h-24 mx-auto mb-6 bg-gray-200 border-2 border-dashed border-gray-300 rounded-xl" />
+                                    <h3 className="text-xl font-semibold text-gray-900">
+                                        No events yet
                                     </h3>
-
-                                    {/* Meta rows */}
-                                    <div className="space-y-1 text-sm text-gray-600 mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="h-4 w-4 text-gray-400" />
-                                            <span>
-                                                {event.date
-                                                    ? new Date(event.date).toLocaleDateString(undefined, {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        year: "numeric",
-                                                    })
-                                                    : "Date TBA"}
-                                            </span>
-                                        </div>
-                                        {event.location && (
-                                            <div className="flex items-start gap-2">
-                                                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                                                <span className="break-words">{event.location}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center justify-between text-sm">
-                                            {/* left: participants */}
-                                            <div className="flex items-center gap-2">
-                                                <Users className="h-4 w-4 text-gray-400" />
-                                                <span>
-                                                    0/
-                                                    {event.maxParticipants ? event.maxParticipants : "0"}
-                                                </span>
-                                            </div>
-
-                                            {/* right: price */}
-                                            <span className="text-blue-700 font-semibold">
-                                                ${event.price ?? 0}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Bottom action bar */}
-                                <div className="border-t border-gray-100 px-6 py-3 ">
-                                    {isDraft ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => handlePublish(event)}
-                                            className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 py-2 text-sm font-semibold text-white hover:from-blue-700 hover:to-cyan-700"
-                                        >
-                                            Publish
-                                        </button>
-                                    ) : (
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => openParticipantsModal(event)}
-                                                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                                            >
-                                                <Users className="h-4 w-4" />
-                                                Participants
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => openQRModal(event)}
-                                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
-                                            >
-                                                <QrCode className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    )}
+                                    <p className="text-gray-600 mt-3">
+                                        Create your first event to start engaging with golfers
+                                    </p>
                                 </div>
                             </div>
-                        );
-                    })}
+                        ) : (
+                            <div className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {filteredEvents.map((event: any) => {
+                                        const statusLower = (event.status || "").toLowerCase();
+                                        const isDraft = statusLower === "draft";
+                                        const isPublished = statusLower === "published";
+
+                                        return (
+                                            <div
+                                                key={event._id}
+                                                className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col"
+                                            >
+                                                {/* Image + badges + hover actions */}
+                                                <div className="relative group h-56 w-full overflow-hidden">
+                                                    {event.coverImage ? (
+                                                        <img
+                                                            src={event.coverImage}
+                                                            alt={event.title}
+                                                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-full w-full bg-gradient-to-tr from-blue-200 via-blue-500 to-cyan-500" />
+                                                    )}
+
+                                                    {/* Status + type pills */}
+                                                    <div className="absolute left-4 top-4 flex items-center gap-2">
+                                                        <span
+                                                            className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize ${isDraft
+                                                                ? "bg-amber-500 text-white"
+                                                                : isPublished
+                                                                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
+                                                                    : "bg-gray-600 text-white"
+                                                                }`}
+                                                        >
+                                                            {statusLower || "draft"}
+                                                        </span>
+                                                        {event.eventType && (
+                                                            <span className="rounded-lg bg-white/90 px-3 py-1 text-xs font-medium text-gray-900 shadow-sm">
+                                                                {event.eventType}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Hover edit/delete buttons */}
+                                                    <div className="absolute right-4 top-4 flex flex-col gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openEditModal(event)}
+                                                            className="inline-flex items-center justify-center rounded-full bg-white/95 p-2 shadow-sm hover:bg-cyan-50"
+                                                        >
+                                                            <Edit2 className="h-4 w-4 text-gray-800" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDelete(event._id)}
+                                                            className="inline-flex items-center justify-center rounded-full bg-white/95 p-2 shadow-sm hover:bg-red-50"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 text-red-600" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Content */}
+                                                <div className="px-6 pt-5 pb-4 flex-1 flex flex-col">
+                                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                                        {event.title || "Golf Tournament"}
+                                                    </h3>
+
+                                                    {/* Meta rows */}
+                                                    <div className="space-y-1 text-sm text-gray-600 mb-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <Calendar className="h-4 w-4 text-gray-400" />
+                                                            <span>
+                                                                {event.date
+                                                                    ? new Date(event.date).toLocaleDateString(undefined, {
+                                                                        month: "short",
+                                                                        day: "numeric",
+                                                                        year: "numeric",
+                                                                    })
+                                                                    : "Date TBA"}
+                                                            </span>
+                                                        </div>
+                                                        {event.location && (
+                                                            <div className="flex items-start gap-2">
+                                                                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                                <span className="break-words">{event.location}</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            {/* left: participants */}
+                                                            <div className="flex items-center gap-2">
+                                                                <Users className="h-4 w-4 text-gray-400" />
+                                                                <span>
+                                                                    0/
+                                                                    {event.maxParticipants ? event.maxParticipants : "0"}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* right: price */}
+                                                            <span className="text-blue-700 font-semibold">
+                                                                ${event.price ?? 0}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Bottom action bar */}
+                                                <div className="border-t border-gray-100 px-6 py-3 ">
+                                                    {isDraft ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handlePublish(event)}
+                                                            className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 py-2 text-sm font-semibold text-white hover:from-blue-700 hover:to-cyan-700"
+                                                        >
+                                                            Publish
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openParticipantsModal(event)}
+                                                                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                                                            >
+                                                                <Users className="h-4 w-4" />
+                                                                Participants
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openQRModal(event)}
+                                                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                                                            >
+                                                                <QrCode className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
-            )}
+            </div>
 
             {/* Create / Edit Event Modal */}
             {isModalOpen && (
-                <div className="fixed left-0 right-0 top-16 bottom-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
                     <div className="max-h-full w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
@@ -1027,7 +1065,8 @@ export default function EventsPage() {
                     </div>
                 </div>
             )}
-            </div>
+
+            <Toaster position="top-right" />
         </>
     );
 }

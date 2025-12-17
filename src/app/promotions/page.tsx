@@ -10,7 +10,6 @@ import {
     deletePromotion,
 } from "@/store/slices/promotionSlice";
 import {
-    Plus,
     Search,
     UploadCloud,
     Eye,
@@ -26,7 +25,6 @@ import {
     Play,
     Zap,
     Trash2,
-    Download,
     Share2,
     MapPin,
     Clock,
@@ -46,7 +44,6 @@ interface Promotion {
     startDate: string;
     endDate: string;
     coverImage?: string;
-    currentRedemptions: number;
     maxRedemptions?: number;
     discountValue: number;
     visibility: string;
@@ -79,6 +76,13 @@ export default function PromotionsPage() {
         }
         return new Set();
     });
+    const [boostedIds, setBoostedIds] = useState<Set<string>>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('boostedPromotions');
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        }
+        return new Set();
+    });
     const qrSvgRef = useRef<HTMLDivElement>(null);
 
     // Form state
@@ -104,11 +108,11 @@ export default function PromotionsPage() {
         const handleClickOutside = () => {
             setMenuId(null);
         };
-        
+
         if (menuId) {
             document.addEventListener('click', handleClickOutside);
         }
-        
+
         return () => {
             document.removeEventListener('click', handleClickOutside);
         };
@@ -132,12 +136,12 @@ export default function PromotionsPage() {
 
     const activeCount = useMemo(() => promotions.filter(p => getStatus(p.startDate, p.endDate) === "Active").length, [promotions]);
     const totalViews = useMemo(() => promotions.length * 10, [promotions]); // Mock views
-    const totalRedemptions = useMemo(() => promotions.reduce((sum, p) => sum + p.currentRedemptions, 0), [promotions]);
+    const totalRedemptions = useMemo(() => 0, [promotions]); // Remove currentRedemptions calculation
 
     const filteredPromotions = useMemo(() => {
         let filtered = promotions.filter(
             p => p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                 (p.promoCode && p.promoCode.toLowerCase().includes(searchTerm.toLowerCase()))
+                (p.promoCode && p.promoCode.toLowerCase().includes(searchTerm.toLowerCase()))
         );
         if (activeTab === "Active") {
             filtered = filtered.filter(p => getStatus(p.startDate, p.endDate) === "Active");
@@ -146,7 +150,7 @@ export default function PromotionsPage() {
         } else if (activeTab === "Expired") {
             filtered = filtered.filter(p => getStatus(p.startDate, p.endDate) === "Expired");
         } else if (activeTab === "Boosted") {
-            filtered = filtered.filter(p => getStatus(p.startDate, p.endDate) === "Active");
+            filtered = filtered.filter(p => boostedIds.has(p._id));
         }
         return filtered;
     }, [promotions, searchTerm, activeTab]);
@@ -185,13 +189,12 @@ export default function PromotionsPage() {
     };
 
     const openQRModal = (promotion: any) => {
-        setQrPromotion(promotion);
+        // Get the latest promotion data from the store instead of using cached data
+        const currentPromotion = promotions.find(p => p._id === promotion._id) || promotion;
+        setQrPromotion(currentPromotion);
         const wasGenerated = generatedQRs.has(promotion._id);
         setIsQrGenerated(wasGenerated);
         setIsQRModalOpen(true);
-        if (wasGenerated) {
-            setIsQrGenerated(true);
-        }
     };
 
     const closeQRModal = () => {
@@ -239,14 +242,44 @@ export default function PromotionsPage() {
         setImagePreview(undefined);
     };
 
-    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0] ?? null;
         if (!file) return;
-        if (!["image/png", "image/jpeg"].includes(file.type)) return;
+        if (!["image/png", "image/jpeg"].includes(file.type)) {
+            toast.error('Please select a PNG or JPEG image');
+            return;
+        }
+
         setImageFile(file);
+
+        // Show preview immediately
         const reader = new FileReader();
         reader.onload = () => setImagePreview(reader.result as string);
         reader.readAsDataURL(file);
+
+        // Upload to server
+        try {
+            const formData = new FormData();
+            formData.append('images', file);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+
+            const data = await response.json();
+            if (data.urls && data.urls.length > 0) {
+                setImagePreview(data.urls[0]);
+                toast.success('Image uploaded successfully!');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            toast.error('Failed to upload image');
+        }
     }
 
     function clearImage() {
@@ -263,7 +296,7 @@ export default function PromotionsPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title || !startDate || !endDate) return;
-        
+
         const promotionData = {
             title,
             description,
@@ -275,50 +308,46 @@ export default function PromotionsPage() {
             visibility,
             maxRedemptions: maxRedemptions ? parseInt(maxRedemptions) : 0,
             coverImage: imagePreview || "",
-            currentRedemptions: 0,
             status: "Active"
         };
 
         try {
             if (editingPromotion) {
                 await dispatch(updatePromotion({ id: editingPromotion._id, data: promotionData })).unwrap();
-                toast.success("Promotion updated successfully!");
+                toast.success('Promotion updated successfully!');
             } else {
                 await dispatch(savePromotion(promotionData)).unwrap();
-                toast.success("Promotion created successfully!");
+                toast.success('Promotion created successfully!');
             }
             closeModal();
         } catch (error: any) {
             console.error('Failed to save promotion:', error);
-            toast.error(error.message || "Failed to save promotion");
+            toast.error('Failed to save promotion. Please try again.');
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this promotion? This action cannot be undone.")) {
-            return;
-        }
-        
-        try {
-            await dispatch(deletePromotion(id)).unwrap();
-            toast.success("Promotion deleted successfully!");
-        } catch (error: any) {
-            console.error('Failed to delete promotion:', error);
-            toast.error(error.message || "Failed to delete promotion");
+    const handleDelete = (id: string) => {
+        if (confirm('Are you sure you want to delete this promotion?')) {
+            try {
+                dispatch(deletePromotion(id));
+                toast.success('Promotion deleted successfully!');
+            } catch (error) {
+                toast.error('Failed to delete promotion.');
+            }
         }
     };
 
     const handlePauseResume = async (promotion: any) => {
         const newStatus = promotion.status === "Paused" ? "Active" : "Paused";
         try {
-            await dispatch(updatePromotion({ 
-                id: promotion._id, 
-                data: { status: newStatus } 
+            await dispatch(updatePromotion({
+                id: promotion._id,
+                data: { status: newStatus }
             })).unwrap();
-            toast.success(`Promotion ${newStatus === "Paused" ? "paused" : "resumed"} successfully!`);
-        } catch (error: any) {
+            toast.success(`Promotion ${newStatus.toLowerCase()} successfully!`);
+        } catch (error) {
             console.error('Failed to update promotion status:', error);
-            toast.error(error.message || "Failed to update promotion status");
+            toast.error('Failed to update promotion status.');
         }
     };
 
@@ -346,307 +375,307 @@ export default function PromotionsPage() {
         return Math.round(basePrice * radiusMultiplier * durationMultiplier);
     };
 
+    const handleBoostPromotion = () => {
+        // Simulate boost functionality
+        toast.success(`Promotion boosted successfully! Package: ${selectedPackage}, Radius: ${radius} miles, Duration: ${duration} days`);
+        closeBoostModal();
+    };
+
+    const getEstimatedResults = () => {
+        const baseImpressions = {
+            starter: 1000,
+            basic: 2500,
+            standard: 7500,
+            premium: 20000,
+            citywide: 50000
+        };
+        const impressions = baseImpressions[selectedPackage as keyof typeof baseImpressions] || 2500;
+        const clicks = Math.round(impressions * 0.05); 
+        const saves = Math.round(impressions * 0.02); 
+        return { impressions, clicks, saves };
+    };
+
     return (
-        <div className="space-y-6">
-            {/* Header row */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
-                        Promotions
-                    </h1>
-                    <p className="text-stone-500">
-                        Create and manage special offers for golfers
-                    </p>
-                </div>
+        <>
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-7xl mx-auto p-6">
 
-                <button
-                    onClick={openCreateModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-blue-700 hover:to-cyan-700"
-                >
-                    <Plus className="h-4 w-4" />
-                    Create Promotion
-                </button>
-            </div>
-
-            {/* Stats cards */}
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                <div className="rounded-xl bg-white p-5 shadow-lg border border-gray-100">
-                    <div className="flex items-center justify-between">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-8">
                         <div>
-                            <div className="text-sm text-gray-600">Active Promotions</div>
-                            <div className="mt-3 text-3xl font-bold text-gray-900">{activeCount}</div>
+                            <h1 className="text-3xl font-bold text-gray-900">Promotions</h1>
+                            <p className="text-gray-600 mt-2">Create and manage special offers for golfers</p>
                         </div>
-                        <div className="rounded-md bg-blue-50 p-3">
-                            <TrendingUp className="h-5 w-5 text-blue-700" />
-                        </div>
-                    </div>
-                </div>
 
-                <div className="rounded-xl bg-white p-5 shadow-lg border border-gray-100">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">Total Views</div>
-                            <div className="mt-3 text-3xl font-bold text-gray-900">0</div>
-                        </div>
-                        <div className="rounded-md bg-blue-50 p-3">
-                            <Eye className="h-5 w-5 text-blue-700" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl bg-white p-5 shadow-lg border border-gray-100">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">Redemptions</div>
-                            <div className="mt-3 text-3xl font-bold text-gray-900">{totalRedemptions}</div>
-                        </div>
-                        <div className="rounded-md bg-blue-50 p-3">
-                            <Ticket className="h-5 w-5 text-blue-700" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* You may include extra card or keep blank */}
-                <div className="hidden lg:block" />
-            </div>
-
-            <div className="space-y-3">
-                {/* Tabs row */}
-                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
-                    {TABS.map((tab) => {
-                        const isActive = activeTab === tab;
-                        return (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`rounded-md px-5 py-1 text-xs md:text-sm font-medium transition ${isActive
-                                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-sm"
-                                    : "text-gray-700 hover:bg-gray-100"
-                                    }`}
-                            >
-                                {tab}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Search row (below tabs) */}
-                <div className="flex items-center gap-4">
-                    <div className="flex-1 md:max-w-8xl w-full">
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search promotions..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Promotions list or empty state */}
-            {filteredPromotions.length === 0 ? (
-                <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-16 shadow-sm">
-                    <div className="text-center max-w-md">
-                        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100">
-                            <Ticket className="h-12 w-12 text-gray-400" />
-                        </div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                            No promotions yet
-                        </h2>
-                        <p className="text-sm text-gray-600 mb-6">
-                            Create your first promotion to attract more customers
-                        </p>
                         <button
                             onClick={openCreateModal}
                             className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-blue-700 hover:to-cyan-700"
                         >
-                            <Plus className="h-4 w-4" />
-                            Create Promotion
+                            + Create Promotion
                         </button>
                     </div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {filteredPromotions.map((promo) => {
-                        const status = getStatus(promo.startDate, promo.endDate);
-                        return (
-                        <div key={promo._id} className="relative rounded-lg border border-gray-200 bg-white p-5 shadow-md">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMenuId(menuId === promo._id ? null : promo._id);
-                                }}
-                                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                            >
-                                <MoreVertical className="h-5 w-5" />
-                            </button>
-                            {menuId === promo._id && (
-                                <div className="absolute top-4 right-4 mt-8 bg-white rounded-lg shadow-lg py-1 z-10 min-w-[160px] border border-gray-200">
-                                    <button 
-                                        onClick={() => openEditModal(promo)}
-                                        className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                        <Edit3 className="h-4 w-4" />
-                                        Edit
-                                    </button>
-                                    <button 
-                                        onClick={() => openQRModal(promo)}
-                                        className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    >
-                                        <QrCode className="h-4 w-4" />
-                                        {generatedQRs.has(promo._id) ? "View QR Code" : "Generate QR Code"}
-                                    </button>
-                                    {(status === "Active" || promo.status === "Paused") && (
-                                        <>
-                                            <button 
-                                                onClick={() => handlePauseResume(promo)}
-                                                className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                            >
-                                                {promo.status === "Paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                                                {promo.status === "Paused" ? "Resume Promotion" : "Pause Promotion"}
-                                            </button>
-                                            {status === "Active" && (
-                                                <button 
-                                                    onClick={() => openBoostModal(promo)}
-                                                    className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                                >
-                                                    <Zap className="h-4 w-4" />
-                                                    Boost Promotion
-                                                </button>
-                                            )}
-                                            <hr className="my-1 border-gray-200" />
-                                        </>
-                                    )}
-                                    <button 
-                                        onClick={() => handleDelete(promo._id)}
-                                        className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                        Delete
-                                    </button>
-                                </div>
-                            )}
-                            <div className="flex items-start justify-between">
-                                <div className="flex gap-4">
-                                    {/* Image */}
-                                    <img
-                                        src={promo.coverImage || "/placeholder.png"}
-                                        alt="promotion"
-                                        className="h-14 w-14 rounded-lg object-cover"
-                                    />
-                                    {/* Content */}
-                                    <div>
-                                        <h3 className="text-base font-semibold text-gray-900">
-                                            {promo.title}
-                                        </h3>
-                                        <p className="text-sm text-gray-500">{promo.description}</p>
-                                        {/* Badges */}
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            <span
-                                                className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                                                    (status === "Active" && promo.status !== "Paused")
-                                                        ? "bg-green-100 text-green-700"
-                                                        : promo.status === "Paused"
-                                                        ? "bg-orange-100 text-orange-700"
-                                                        : status === "Scheduled"
-                                                        ? "bg-blue-100 text-blue-700"
-                                                        : "bg-gray-200 text-gray-700"
-                                                }`}
-                                            >
-                                                {promo.status === "Paused" ? "paused" : status.toLowerCase()}
-                                            </span>
-                                            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                                {promo.promoType}
-                                            </span>
-                                            {promo.promoCode && (
-                                                <span className="rounded-md border border-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-900">
-                                                    {promo.promoCode}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Stats */}
-                            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-gray-100 pt-4 text-center">
+
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="flex items-center justify-between">
                                 <div>
-                                    <Eye className="mx-auto h-4 w-4 text-gray-400" />
-                                    <div className="mt-1 text-sm font-semibold text-gray-900">0</div>
-                                    <div className="text-xs text-gray-500">Views</div>
+                                    <p className="text-sm text-gray-600">Active Promotions</p>
+                                    <p className="text-3xl font-bold mt-2">{activeCount}</p>
                                 </div>
-                                <div>
-                                    <Bookmark className="mx-auto h-4 w-4 text-gray-400" />
-                                    <div className="mt-1 text-sm font-semibold text-gray-900">0</div>
-                                    <div className="text-xs text-gray-500">Saves</div>
-                                </div>
-                                <div>
-                                    <Ticket className="mx-auto h-4 w-4 text-gray-400" />
-                                    <div className="mt-1 text-sm font-semibold text-gray-900">0</div>
-                                    <div className="text-xs text-gray-500">Redeemed</div>
-                                </div>
-                            </div>
-                            {/* Footer */}
-                            <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-                                <span>
-                                    {formatDateRange(promo.startDate, promo.endDate)}
-                                </span>
-                                <span>{promo.currentRedemptions} / {promo.maxRedemptions || "Unlimited"} used</span>
+                                <TrendingUp className="w-10 h-10 text-blue-500" />
                             </div>
                         </div>
-                    );
-                    })}
+
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-gray-600">Total Views</p>
+                                    <p className="text-3xl font-bold mt-2">0</p>
+                                </div>
+                                <Eye className="w-10 h-10 text-blue-500" />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-gray-600">Redemptions</p>
+                                    <p className="text-3xl font-bold mt-2">{totalRedemptions}</p>
+                                </div>
+                                <Ticket className="w-10 h-10 text-blue-500" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-8 border-b border-gray-200 mb-8">
+                        {TABS.map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`pb-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab
+                                    ? "border-teal-500 text-teal-600"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                    }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="mb-6 w-full">
+                        <div className="relative">
+                            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
+                            <input
+                                type="text"
+                                placeholder="Search promotions..."
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Promotions list or empty state */}
+                    {filteredPromotions.length === 0 ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-20 text-center">
+                            <div className="max-w-md mx-auto">
+                                <div className="w-24 h-24 mx-auto mb-6 bg-gray-200 border-2 border-dashed border-gray-300 rounded-xl" />
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    {searchTerm ? "No promotions found" : "No promotions yet"}
+                                </h3>
+                                <p className="text-gray-600 mt-3">
+                                    {searchTerm ? "Try adjusting your search" : "Create your first promotion to attract more customers"}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {filteredPromotions.map((promo) => {
+                                const status = getStatus(promo.startDate, promo.endDate);
+                                const isBoosted = boostedIds.has(promo._id);
+                                return (
+                                    <div key={promo._id} className={`relative rounded-xl bg-white shadow-md ${isBoosted ? "border-2 border-yellow-400" : "border border-gray-200"}`}>
+                                        {isBoosted && (
+                                            <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 rounded-t-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-white border-b border-white">
+                                                <Zap className="h-4 w-4" />
+                                                PROMOTED
+                                            </div>
+                                        )}
+                                        <div className={`p-5 ${isBoosted ? "pt-12" : ""}`}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMenuId(menuId === promo._id ? null : promo._id);
+                                                }}
+                                                className={`absolute right-4 text-gray-400 hover:text-gray-600 ${isBoosted ? "top-14" : "top-4"
+                                                    }`}
+                                            >
+                                                <MoreVertical className="h-5 w-5" />
+                                            </button>
+                                            {menuId === promo._id && (
+                                                <div className="absolute top-4 right-4 mt-8 bg-white rounded-lg shadow-lg py-1 z-10 min-w-[160px] border border-gray-200">
+                                                    <button
+                                                        onClick={() => openEditModal(promo)}
+                                                        className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                    >
+                                                        <Edit3 className="h-4 w-4" />
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openQRModal(promo)}
+                                                        className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                    >
+                                                        <QrCode className="h-4 w-4" />
+                                                        {generatedQRs.has(promo._id) ? "View QR Code" : "Generate QR Code"}
+                                                    </button>
+                                                    {(status === "Active" || promo.status === "Paused") && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handlePauseResume(promo)}
+                                                                className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                            >
+                                                                {promo.status === "Paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                                                                {promo.status === "Paused" ? "Resume Promotion" : "Pause Promotion"}
+                                                            </button>
+                                                            {status === "Active" && !isBoosted && (
+                                                                <button
+                                                                    onClick={() => openBoostModal(promo)}
+                                                                    className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                                >
+                                                                    <Zap className="h-4 w-4" />
+                                                                    Boost Promotion
+                                                                </button>
+                                                            )}
+                                                            <hr className="my-1 border-gray-200" />
+                                                        </>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDelete(promo._id)}
+                                                        className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            )}
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex gap-4">
+                                                    {/* Image */}
+                                                    <img
+                                                        src={promo.coverImage || "/placeholder.png"}
+                                                        alt="promotion"
+                                                        className="h-14 w-14 rounded-lg object-cover"
+                                                    />
+                                                    {/* Content */}
+                                                    <div>
+                                                        <h3 className="text-base font-semibold text-gray-900">
+                                                            {promo.title}
+                                                        </h3>
+                                                        <p className="text-sm text-gray-500">{promo.description}</p>
+                                                        {/* Badges */}
+                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                            <span
+                                                                className={`rounded-md px-2 py-0.5 text-xs font-medium ${(status === "Active" && promo.status !== "Paused")
+                                                                    ? "bg-green-100 text-green-700"
+                                                                    : promo.status === "Paused"
+                                                                        ? "bg-orange-100 text-orange-700"
+                                                                        : status === "Scheduled"
+                                                                            ? "bg-blue-100 text-blue-700"
+                                                                            : "bg-gray-200 text-gray-700"
+                                                                    }`}
+                                                            >
+                                                                {promo.status === "Paused" ? "paused" : status.toLowerCase()}
+                                                            </span>
+                                                            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                                                {promo.promoType}
+                                                            </span>
+                                                            {promo.promoCode && (
+                                                                <span className="rounded-md border border-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-900">
+                                                                    {promo.promoCode}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {/* Stats */}
+                                            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-gray-100 pt-4 text-center">
+                                                <div>
+                                                    <Eye className="mx-auto h-4 w-4 text-gray-400" />
+                                                    <div className="mt-1 text-sm font-semibold text-gray-900">0</div>
+                                                    <div className="text-xs text-gray-500">Views</div>
+                                                </div>
+                                                <div>
+                                                    <Bookmark className="mx-auto h-4 w-4 text-gray-400" />
+                                                    <div className="mt-1 text-sm font-semibold text-gray-900">0</div>
+                                                    <div className="text-xs text-gray-500">Saves</div>
+                                                </div>
+                                                <div>
+                                                    <Ticket className="mx-auto h-4 w-4 text-gray-400" />
+                                                    <div className="mt-1 text-sm font-semibold text-gray-900">0</div>
+                                                    <div className="text-xs text-gray-500">Redeemed</div>
+                                                </div>
+                                            </div>
+                                            {/* Footer */}
+                                            <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+                                                <span>
+                                                    {formatDateRange(promo.startDate, promo.endDate)}
+                                                </span>
+                                                <span>0 / {promo.maxRedemptions || "Unlimited"} used</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
                 </div>
-            )}
+            </div>
 
             {/* CREATE PROMOTION MODAL */}
             {isModalOpen && (
-                <div className="fixed left-0 right-0 top-16 bottom-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-                    <div className="max-h-full w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl">
-                        {/* Modal header */}
-                        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                            <div>
-                                <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
-                                    {editingPromotion ? "Edit Promotion" : "Create Promotion"}
-                                </h2>
-                                <p className="mt-1 text-xs md:text-sm text-gray-600">
-                                    Set up a special offer to attract more golfers.
-                                </p>
-                            </div>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">
+                                {editingPromotion ? "Edit Promotion" : "Create New Promotion"}
+                            </h2>
                             <button
                                 onClick={closeModal}
-                                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                className="text-gray-400 hover:text-gray-600"
                             >
-                                <X className="h-5 w-5" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        {/* Modal body */}
-                        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-6">
-                            {/* Title */}
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="text-sm font-medium text-gray-900">Title *</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Title *
+                                </label>
                                 <input
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     placeholder="e.g., 20% Off All Lessons"
-                                    className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     required
                                 />
                             </div>
 
-                            {/* Promotion Type + Discount Value */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm font-medium text-gray-900">Promotion Type *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Promotion Type *
+                                    </label>
                                     <select
                                         value={promoType}
                                         onChange={(e) => setPromoType(e.target.value)}
-                                        className="mt-2 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     >
                                         <option>Percentage Off</option>
                                         <option>Dollar Off</option>
@@ -659,40 +688,44 @@ export default function PromotionsPage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium text-gray-900">Discount Value *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Discount Value *
+                                    </label>
                                     <input
                                         type="number"
                                         value={discountValue}
                                         onChange={(e) => setDiscountValue(e.target.value)}
                                         placeholder="20"
-                                        className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                         required
                                     />
                                 </div>
                             </div>
 
-                            {/* Description */}
                             <div>
-                                <label className="text-sm font-medium text-gray-900">Description</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Description
+                                </label>
                                 <textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     rows={4}
                                     placeholder="Describe your promotion..."
-                                    className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
                             </div>
 
-                            {/* Promo Code with generate button */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div className="md:col-span-2">
-                                    <label className="text-sm font-medium text-gray-900">Promo Code</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Promo Code
+                                    </label>
                                     <input
                                         type="text"
                                         value={promoCode}
                                         onChange={(e) => setPromoCode(e.target.value)}
                                         placeholder="GOLF2025"
-                                        className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     />
                                 </div>
 
@@ -700,43 +733,48 @@ export default function PromotionsPage() {
                                     <button
                                         type="button"
                                         onClick={generatePromoCode}
-                                        className="ml-auto inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
+                                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                                     >
-                                        <Sparkles className="h-4 w-4 text-gray-800" />
+                                        <Sparkles className="w-4 h-4" />
                                         Generate
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Dates with Time */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm font-medium text-gray-900">Start Date & Time *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Start Date & Time *
+                                    </label>
                                     <input
                                         type="datetime-local"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
-                                        className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium text-gray-900">End Date & Time *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        End Date & Time *
+                                    </label>
                                     <input
                                         type="datetime-local"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
-                                        className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm font-medium text-gray-900">Visibility</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Visibility
+                                    </label>
                                     <select
                                         value={visibility}
                                         onChange={(e) => setVisibility(e.target.value)}
-                                        className="mt-2 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     >
                                         <option>Public</option>
                                         <option>Followers Only</option>
@@ -745,20 +783,23 @@ export default function PromotionsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="text-sm font-medium text-gray-900">Max Redemptions (Optional)</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Max Redemptions (Optional)
+                                    </label>
                                     <input
                                         type="text"
                                         value={maxRedemptions}
                                         onChange={(e) => setMaxRedemptions(e.target.value)}
                                         placeholder="Unlimited"
-                                        className="mt-2 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-600 focus:outline-none focus:ring-1 focus:ring-cyan-600"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
                                     />
                                 </div>
                             </div>
 
-                            {/* Promotion Image */}
                             <div>
-                                <label className="text-sm font-medium text-gray-900">Promotion Image</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Promotion Image
+                                </label>
                                 <div
                                     onClick={() => fileInputRef.current?.click()}
                                     onDragOver={(e) => e.preventDefault()}
@@ -772,7 +813,7 @@ export default function PromotionsPage() {
                                             reader.readAsDataURL(f);
                                         }
                                     }}
-                                    className="mt-2 flex h-40 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-cyan-500 transition-colors"
+                                    className="flex h-40 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-teal-500 transition-colors"
                                 >
                                     {imagePreview ? (
                                         <div className="h-full w-full overflow-hidden rounded-lg">
@@ -789,36 +830,27 @@ export default function PromotionsPage() {
                                     )}
                                 </div>
 
-                                <div className="mt-2 flex items-center gap-2">
-                                    <input
-                                        ref={fileInputRef}
-                                        id="promo-image"
-                                        type="file"
-                                        accept="image/png,image/jpeg"
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                    />
-                                    {imagePreview && (
-                                        <button type="button" onClick={clearImage} className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                            Remove Image
-                                        </button>
-                                    )}
-                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    id="promo-image"
+                                    type="file"
+                                    accept="image/png,image/jpeg"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
                             </div>
 
-                            {/* Footer buttons */}
-                            <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 pb-2 sm:flex-row sm:justify-end">
+                            <div className="flex gap-3 pt-4">
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                 >
                                     Cancel
                                 </button>
-
                                 <button
                                     type="submit"
-                                    className="inline-flex items-center justify-center rounded-md px-5 py-2 text-sm font-medium shadow-sm transition bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
+                                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md hover:from-blue-700 hover:to-cyan-700"
                                 >
                                     {editingPromotion ? "Update Promotion" : "Create Promotion"}
                                 </button>
@@ -830,91 +862,89 @@ export default function PromotionsPage() {
 
             {/* QR Code Modal */}
             {isQRModalOpen && qrPromotion && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4">
-                  <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                          Promotion QR Code
-                        </h2>
-                        <p className="text-sm text-gray-500">
-                          Share this QR code for easy promotion redemption
-                        </p>
-                      </div>
-                      <button
-                        onClick={closeQRModal}
-                        className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                    {/* Body */}
-                    <div className="p-6">
-                      {!isQrGenerated ? (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 px-6 py-12 text-center">
-                          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100">
-                            <Share2 className="h-7 w-7 text-gray-400" />
-                          </div>
-                          <p className="mb-5 text-sm text-gray-500">
-                            No QR code generated yet
-                          </p>
-                          <button 
-                            onClick={handleGenerateQR}
-                            className="rounded-md bg-emerald-700 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-800"
-                          >
-                            Generate QR Code
-                          </button>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-semibold">
+                                Promotion QR Code
+                            </h2>
+                            <button
+                                onClick={closeQRModal}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
-                      ) : (
-                        <div className="rounded-xl border border-gray-200 p-6 text-center">
-                          {/* QR IMAGE */}
-                          <div className="mx-auto mb-6 w-56 h-56 flex items-center justify-center">
-                            <div ref={qrSvgRef} className="w-full h-full">
-                              <QRCode
-                                value={qrPromotion.promoCode || qrPromotion._id}
-                                size={224}
-                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                              />
+
+                        <div className="text-center">
+                            {!isQrGenerated ? (
+                                <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 px-6 py-12">
+                                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100">
+                                        <Share2 className="h-7 w-7 text-gray-400" />
+                                    </div>
+                                    <p className="mb-5 text-sm text-gray-500">
+                                        No QR code generated yet
+                                    </p>
+                                    <button
+                                        onClick={handleGenerateQR}
+                                        className="rounded-md bg-emerald-700 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+                                    >
+                                        Generate QR Code
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-gray-200 p-6">
+                                    <div className="mx-auto mb-6 w-56 h-56 flex items-center justify-center">
+                                        <div ref={qrSvgRef} className="w-full h-full">
+                                            <QRCode
+                                                value={(() => {
+                                                    const currentPromotion = promotions.find(p => p._id === qrPromotion._id) || qrPromotion;
+                                                    return currentPromotion.promoCode || currentPromotion._id;
+                                                })()}
+                                                size={224}
+                                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                        {(() => {
+                                            const currentPromotion = promotions.find(p => p._id === qrPromotion._id) || qrPromotion;
+                                            return currentPromotion.promoType === "Percentage Off"
+                                                ? `${currentPromotion.discountValue}% off`
+                                                : `${currentPromotion.discountValue} off`;
+                                        })()}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 mb-4">{(() => {
+                                        const currentPromotion = promotions.find(p => p._id === qrPromotion._id) || qrPromotion;
+                                        return currentPromotion.description;
+                                    })()}</p>
+                                    <div className="mx-auto w-fit rounded-lg bg-blue-100 px-6 py-3 text-center">
+                                        <p className="text-xs text-blue-700 mb-1">Code:</p>
+                                        <p className="text-base font-semibold text-blue-800">
+                                            {qrPromotion.promoCode || qrPromotion._id}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {isQrGenerated && (
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={handleDownloadQR}
+                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                >
+                                    Download
+                                </button>
+                                <button
+                                    onClick={closeQRModal}
+                                    className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+                                >
+                                    Done
+                                </button>
                             </div>
-                          </div>
-                          {/* Promotion info */}
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            {qrPromotion.promoType === "Percentage Off" 
-                              ? `${qrPromotion.discountValue}% off` 
-                              : `${qrPromotion.discountValue} off`
-                            }
-                          </h3>
-                          <p className="text-sm text-gray-500 mb-4">{qrPromotion.description}</p>
-                          {/* Code */}
-                          <div className="mx-auto w-fit rounded-lg bg-blue-100 px-6 py-3 text-center">
-                            <p className="text-xs text-blue-700 mb-1">Code:</p>
-                            <p className="text-base font-semibold text-blue-800">
-                              {qrPromotion.promoCode || qrPromotion._id}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                        )}
                     </div>
-                    {/* Footer - only show when generated */}
-                    {isQrGenerated && (
-                      <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
-                        <button
-                          onClick={handleDownloadQR}
-                          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-14 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          <Download className="h-4 w-4" />
-                          Download
-                        </button>
-                        <button
-                          onClick={closeQRModal}
-                          className="rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-19 py-2 text-sm font-medium text-white hover:from-blue-700 hover:to-cyan-700"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
             )}
 
@@ -950,8 +980,8 @@ export default function PromotionsPage() {
                                 />
                                 <div>
                                     <h3 className="text-base font-semibold text-gray-900">
-                                        {boostPromotion.promoType === "Percentage Off" 
-                                            ? `${boostPromotion.discountValue}% off` 
+                                        {boostPromotion.promoType === "Percentage Off"
+                                            ? `${boostPromotion.discountValue}% off`
                                             : `${boostPromotion.discountValue} off`
                                         }
                                     </h3>
@@ -968,14 +998,19 @@ export default function PromotionsPage() {
 
                             <div className="space-y-4">
                                 {/* Starter */}
-                                <div className="flex items-center justify-between rounded-lg border p-4">
-                                    <div className="flex items-start gap-3">
-                                        <input 
-                                            type="radio" 
-                                            name="package" 
+                                <div
+                                    onClick={() => setSelectedPackage("starter")}
+                                    className={`flex items-center justify-between rounded-lg border-2 p-4 cursor-pointer transition-all ${selectedPackage === "starter" ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="package"
                                             value="starter"
                                             checked={selectedPackage === "starter"}
-                                            onChange={(e) => setSelectedPackage(e.target.value)}
+                                            onChange={() => { }}
+                                            className="mt-0 pointer-events-none"
                                         />
                                         <div>
                                             <p className="font-medium">Starter Boost</p>
@@ -983,25 +1018,26 @@ export default function PromotionsPage() {
                                             <p className="text-xs text-gray-400">1,000 impressions</p>
                                         </div>
                                     </div>
-                                    <span className="text-lg font-semibold text-green-700">$5</span>
+                                    <span className="text-lg font-semibold text-blue-700">$5</span>
                                 </div>
 
-                                {/* Basic (Selected) */}
-                                <div className={`relative flex items-center justify-between rounded-lg border-2 p-4 ${
-                                    selectedPackage === "basic" ? "border-green-600 bg-green-50" : "border-gray-200"
-                                }`}>
-                                    {selectedPackage === "basic" && (
-                                        <span className="absolute right-4 top-2 rounded-full bg-yellow-400 px-3 py-0.5 text-xs font-semibold text-white">
-                                            POPULAR
-                                        </span>
-                                    )}
-                                    <div className="flex items-start gap-3">
-                                        <input 
-                                            type="radio" 
-                                            name="package" 
+                                {/* Basic */}
+                                <div
+                                    onClick={() => setSelectedPackage("basic")}
+                                    className={`relative flex items-center justify-between rounded-lg border-2 p-4 cursor-pointer transition-all border-yellow-400 ${selectedPackage === "basic" ? "bg-blue-50" : "hover:bg-gray-50"
+                                        }`}
+                                >
+                                    <span className="absolute right-4 top-2 rounded-full bg-yellow-400 px-3 py-0.5 text-xs font-semibold text-white">
+                                        POPULAR
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="package"
                                             value="basic"
                                             checked={selectedPackage === "basic"}
-                                            onChange={(e) => setSelectedPackage(e.target.value)}
+                                            onChange={() => { }}
+                                            className="mt-0 pointer-events-none"
                                         />
                                         <div>
                                             <p className="font-medium">Basic Boost</p>
@@ -1009,18 +1045,23 @@ export default function PromotionsPage() {
                                             <p className="text-xs text-gray-500">2,500 impressions</p>
                                         </div>
                                     </div>
-                                    <span className="text-xl font-bold text-green-700">$10</span>
+                                    <span className="text-xl font-bold text-blue-700">$10</span>
                                 </div>
 
                                 {/* Standard */}
-                                <div className="flex items-center justify-between rounded-lg border p-4">
-                                    <div className="flex items-start gap-3">
-                                        <input 
-                                            type="radio" 
-                                            name="package" 
+                                <div
+                                    onClick={() => setSelectedPackage("standard")}
+                                    className={`flex items-center justify-between rounded-lg border-2 p-4 cursor-pointer transition-all ${selectedPackage === "standard" ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="package"
                                             value="standard"
                                             checked={selectedPackage === "standard"}
-                                            onChange={(e) => setSelectedPackage(e.target.value)}
+                                            onChange={() => { }}
+                                            className="mt-0 pointer-events-none"
                                         />
                                         <div>
                                             <p className="font-medium">Standard Boost</p>
@@ -1028,18 +1069,23 @@ export default function PromotionsPage() {
                                             <p className="text-xs text-gray-400">7,500 impressions</p>
                                         </div>
                                     </div>
-                                    <span className="text-lg font-semibold text-green-700">$25</span>
+                                    <span className="text-lg font-semibold text-blue-700">$25</span>
                                 </div>
 
                                 {/* Premium */}
-                                <div className="flex items-center justify-between rounded-lg border p-4">
-                                    <div className="flex items-start gap-3">
-                                        <input 
-                                            type="radio" 
-                                            name="package" 
+                                <div
+                                    onClick={() => setSelectedPackage("premium")}
+                                    className={`flex items-center justify-between rounded-lg border-2 p-4 cursor-pointer transition-all ${selectedPackage === "premium" ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="package"
                                             value="premium"
                                             checked={selectedPackage === "premium"}
-                                            onChange={(e) => setSelectedPackage(e.target.value)}
+                                            onChange={() => { }}
+                                            className="mt-0 pointer-events-none"
                                         />
                                         <div>
                                             <p className="font-medium">Premium Boost</p>
@@ -1047,18 +1093,23 @@ export default function PromotionsPage() {
                                             <p className="text-xs text-gray-400">20,000 impressions</p>
                                         </div>
                                     </div>
-                                    <span className="text-lg font-semibold text-green-700">$50</span>
+                                    <span className="text-lg font-semibold text-blue-700">$50</span>
                                 </div>
 
                                 {/* Citywide */}
-                                <div className="flex items-center justify-between rounded-lg border p-4">
-                                    <div className="flex items-start gap-3">
-                                        <input 
-                                            type="radio" 
-                                            name="package" 
+                                <div
+                                    onClick={() => setSelectedPackage("citywide")}
+                                    className={`flex items-center justify-between rounded-lg border-2 p-4 cursor-pointer transition-all ${selectedPackage === "citywide" ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            name="package"
                                             value="citywide"
                                             checked={selectedPackage === "citywide"}
-                                            onChange={(e) => setSelectedPackage(e.target.value)}
+                                            onChange={() => { }}
+                                            className="mt-0 pointer-events-none"
                                         />
                                         <div>
                                             <p className="font-medium">Citywide</p>
@@ -1066,7 +1117,7 @@ export default function PromotionsPage() {
                                             <p className="text-xs text-gray-400">50,000 impressions</p>
                                         </div>
                                     </div>
-                                    <span className="text-lg font-semibold text-green-700">$100</span>
+                                    <span className="text-lg font-semibold text-blue-700">$100</span>
                                 </div>
                             </div>
                         </div>
@@ -1107,25 +1158,25 @@ export default function PromotionsPage() {
                         </div>
 
                         {/* Estimated Results */}
-                        <div className="mx-6 mt-6 rounded-xl bg-green-50 p-6">
+                        <div className="mx-6 mt-6 rounded-xl bg-blue-50 p-6">
                             <div className="flex items-center gap-2 mb-4">
-                                <TrendingUp className="h-5 w-5 text-green-700" />
-                                <h4 className="font-semibold text-green-900">
+                                <TrendingUp className="h-5 w-5 text-blue-700" />
+                                <h4 className="font-semibold text-blue-900">
                                     Estimated Results
                                 </h4>
                             </div>
 
                             <div className="grid grid-cols-3 gap-4 text-center">
                                 <div>
-                                    <p className="text-2xl font-bold text-green-700">2,500</p>
+                                    <p className="text-2xl font-bold text-blue-700">{getEstimatedResults().impressions.toLocaleString()}</p>
                                     <p className="text-sm text-gray-600">Impressions</p>
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-green-700">375</p>
+                                    <p className="text-2xl font-bold text-blue-700">{getEstimatedResults().clicks.toLocaleString()}</p>
                                     <p className="text-sm text-gray-600">Est. Clicks</p>
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-green-700">200</p>
+                                    <p className="text-2xl font-bold text-blue-700">{getEstimatedResults().saves.toLocaleString()}</p>
                                     <p className="text-sm text-gray-600">Est. Saves</p>
                                 </div>
                             </div>
@@ -1147,7 +1198,15 @@ export default function PromotionsPage() {
                             <button onClick={closeBoostModal} className="rounded-md border px-4 py-2 text-sm">
                                 Cancel
                             </button>
-                            <button className="flex items-center gap-2 rounded-md bg-yellow-500 px-5 py-2 text-sm font-semibold text-white hover:bg-yellow-600">
+                            <button
+                                onClick={() => {
+                                    const newSet = new Set(boostedIds).add(boostPromotion._id);
+                                    setBoostedIds(newSet);
+                                    localStorage.setItem('boostedPromotions', JSON.stringify([...newSet]));
+                                    closeBoostModal();
+                                }}
+                                className="flex items-center gap-2 rounded-md bg-yellow-500 px-5 py-2 text-sm font-semibold text-white hover:bg-yellow-600"
+                            >
                                 <Zap className="h-4 w-4" />
                                 Boost for ${calculateTotalCost()}
                             </button>
@@ -1155,7 +1214,8 @@ export default function PromotionsPage() {
                     </div>
                 </div>
             )}
+
             <Toaster position="top-right" />
-        </div>
+        </>
     );
 }
