@@ -16,6 +16,7 @@ import {
     Users,
     Settings,
     Trash2,
+
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -48,7 +49,7 @@ export default function BookingsPage() {
     const [activeTab, setActiveTab] = useState<Tab>("Booking Requests");
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const [editingBooking, setEditingBooking] = useState<any>(null);
-    const [currentDate, setCurrentDate] = useState(new Date()); // used as "view" date for calendar
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedStatus, setSelectedStatus] = useState("All Status");
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
@@ -138,9 +139,9 @@ export default function BookingsPage() {
             // refresh list so newly created/updated service appears immediately
             await dispatch(fetchBookings()).unwrap?.();
             handleCloseModal();
-        } catch (error: any) {
+        } catch (error) {
             console.error('Failed to save booking:', error);
-            toast.error(error.message || "Failed to save booking");
+            toast.error("Failed to save service. Please try again.");
         }
     };
 
@@ -151,6 +152,7 @@ export default function BookingsPage() {
 
         try {
             await dispatch(deleteBooking(id)).unwrap();
+            toast.success("Service deleted successfully!");
             // refresh list after delete
             await dispatch(fetchBookings()).unwrap?.();
             // also remove availability for that booking if any
@@ -162,28 +164,25 @@ export default function BookingsPage() {
             toast.success("Booking Delete successfully!");
         } catch (err: any) {
             console.error("Failed to delete booking:", err);
-            toast.error(err.message || "Failed to delete booking");
+            toast.error("Failed to delete service. Please try again.");
         }
     };
 
     const isFormValid = formData.serviceName.trim() !== "" && formData.price > 0;
 
-    // ---------- MONTH CALENDAR helpers ----------
-    // returns a 2D array: weeks[] -> days (Date | null)
+    // ---------- MONTH CALENDAR ----------
     const getMonthGrid = (viewDate: Date) => {
         const year = viewDate.getFullYear();
-        const month = viewDate.getMonth(); // 0-index
-        // start with first day of month
+        const month = viewDate.getMonth(); 
         const firstOfMonth = new Date(year, month, 1);
-        // find the Monday before/containing firstOfMonth (we use Monday as first column)
-        const firstDayIndex = (firstOfMonth.getDay() + 6) % 7; // convert Sun=0..Sat=6 -> Mon=0..Sun=6
+        const firstDayIndex = (firstOfMonth.getDay() + 6) % 7; 
         const startDate = new Date(firstOfMonth);
         startDate.setDate(firstOfMonth.getDate() - firstDayIndex);
 
         const weeks: (Date | null)[][] = [];
         let cur = new Date(startDate);
 
-        // produce 6 weeks to always have consistent grid (common calendar pattern)
+        
         for (let wk = 0; wk < 6; wk++) {
             const week: (Date | null)[] = [];
             for (let d = 0; d < 7; d++) {
@@ -262,13 +261,10 @@ export default function BookingsPage() {
             const defaultStart = TIME_OPTIONS.includes("9:00 AM") ? "9:00 AM" : TIME_OPTIONS[0];
             const defaultEnd = TIME_OPTIONS.includes("5:00 PM") ? "5:00 PM" : TIME_OPTIONS[TIME_OPTIONS.length - 1];
 
-            // create a single new slot object with unique id
             const newSlot = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, start: defaultStart, end: defaultEnd };
 
-            // simple guard: if last slot exists and has exactly same start & end, don't add another identical one
             const last = arr[arr.length - 1];
             if (last && last.start === newSlot.start && last.end === newSlot.end) {
-                // do nothing (prevents accidental duplicate adds)
                 return prev;
             }
 
@@ -326,7 +322,7 @@ export default function BookingsPage() {
             : 0;
     };
 
-    // ----------------------------------------------------
+
 
     return (
         <>

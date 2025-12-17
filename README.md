@@ -87,3 +87,6 @@ All these features and more make **NextAdmin** a robust, well-rounded solution f
 
 ### Version 1.0
 - Initial Release - [May 13, 2024]
+
+<!-- next version -->
+Next.js v16.0.7
