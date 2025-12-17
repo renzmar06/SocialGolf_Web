@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const posts = await SocialPost.find().sort({ createdAt: -1 });
     return NextResponse.json({ success: true, message: "Posts fetched successfully", posts });
   } catch (error) {
-    return NextResponse.json({ success: false, message: "Failed to fetch posts" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Failed to fetch posts" }, { status: 200 });
   }
 }
 
@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get("token")?.value;
     if (!token) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 200 });
     }
 
     const decoded = verifyToken(token);
     if (!decoded) {
-      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 200 });
     }
 
     console.log("Decoded token:", decoded);
@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
     });
 
     const populatedPost = await SocialPost.findById(post._id);
-    return NextResponse.json({ success: true, message: "Post created successfully", post: populatedPost }, { status: 201 });
+    return NextResponse.json({ success: true, message: "Post created successfully", post: populatedPost });
   } catch (error) {
     console.error("POST Error:", error);
-    return NextResponse.json({ success: false, message: "Failed to create post" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Failed to create post" }, { status: 200 });
   }
 }

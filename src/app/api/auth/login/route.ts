@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
     const user = await User.findOne({ email, isActive: true });
     if (!user || !(await user.comparePassword(password))) {
-      return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 200 });
     }
 
     const token = signToken({ userId: user._id, email: user.email, role: user.role });
@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
       message: "Login successful",
       user: { _id: user._id, name: user.name, email: user.email, role: user.role, isActive: user.isActive },
       token
-    });
+    }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: "Login failed" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Login failed" }, { status: 200 });
   }
 }

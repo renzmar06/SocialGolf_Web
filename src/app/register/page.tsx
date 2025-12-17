@@ -3,6 +3,7 @@
 import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import toast, { Toaster } from "react-hot-toast";
 import {
   Target,
   UserCheck,
@@ -113,17 +114,17 @@ export default function RegisterPage() {
     setDocError(null);
 
     if (currentStep === 1 && !selected) {
-      alert("Please select a business type");
+      toast.error("Please select a business type");
       return;
     }
 
     if (currentStep === 2) {
       if (!businessName.trim()) {
-        alert("Business name is required");
+        toast.error("Business name is required");
         return;
       }
       if (!email || !password || !streetAddress || !city || !state || !zip) {
-        alert("Please fill all required contact and address fields");
+        toast.error("Please fill all required contact and address fields");
         return;
       }
       if (!logoFile) {
@@ -157,7 +158,7 @@ export default function RegisterPage() {
 
   const addTeamMember = () => {
     if (!teamMemberName.trim() || !teamMemberEmail.trim()) {
-      alert("Name and email are required");
+      toast.error("Name and email are required");
       return;
     }
     setTeamMembers((prev) => [
@@ -212,7 +213,7 @@ export default function RegisterPage() {
     const maxPhotos = 100;
     const remaining = maxPhotos - galleryFiles.length;
     if (remaining <= 0) {
-      alert(`You can upload a maximum of ${maxPhotos} gallery photos.`);
+      toast.error(`You can upload a maximum of ${maxPhotos} gallery photos.`);
       return;
     }
 
@@ -243,7 +244,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async () => {
     if (!logoFile || !verificationFile) {
-      alert("Please upload both logo and verification document.");
+      toast.error("Please upload both logo and verification document.");
       setCurrentStep(2);
       return;
     }
@@ -280,14 +281,19 @@ export default function RegisterPage() {
 
       const data = await res.json();
 
-      if (data.success) {
-        setCurrentStep(4);
+      if (res.status === 200) {
+        if (data.success) {
+          toast.success("Registration successful!");
+          setCurrentStep(4);
+        } else {
+          toast.error(data.error || "Registration failed");
+        }
       } else {
-        alert(data.error || "Registration failed");
+        toast.error(data.error || "Registration failed");
       }
     } catch (err) {
       console.error(err);
-      alert("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -296,6 +302,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col">
       {/* Header */}
+      <Toaster position="top-right" />
       <header className="sticky top-0 z-50 w-full px-6 py-5 bg-white/90 backdrop-blur-xl shadow-sm border-b">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -376,7 +383,7 @@ export default function RegisterPage() {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="e.g. Augusta National Golf Club"
-                  className="w-full px-5 py-4 border rounded-xl focus:ring-4 focus:ring-cyan-200 focus:border-cyan-500"
+                  className="w-full px-5 py-4 border rounded-xl "
                 />
               </div>
 
@@ -555,7 +562,7 @@ export default function RegisterPage() {
                   value={aboutBusiness}
                   onChange={(e) => setAboutBusiness(e.target.value)}
                   placeholder="Tell us about your golf course, services, or mission..."
-                  className="w-full px-5 py-4 border rounded-xl focus:ring-4 focus:ring-cyan-200 focus:border-cyan-500 resize-none"
+                  className="w-full px-5 py-4 border rounded-xl  resize-none"
                 />
               </div>
 
@@ -572,7 +579,7 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@yourbusiness.com"
-                    className="w-full pl-12 pr-5 py-4 border rounded-xl focus:ring-4 focus:ring-cyan-200 focus:border-cyan-500"
+                    className="w-full pl-12 pr-5 py-4 border rounded-xl  focus:border-cyan-500"
                     required
                   />
                 </div>
@@ -583,7 +590,7 @@ export default function RegisterPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Create a strong password"
-                    className="w-full pl-12 pr-5 py-4 border rounded-xl focus:ring-4 focus:ring-cyan-200 focus:border-cyan-500"
+                    className="w-full pl-12 pr-5 py-4 border rounded-xl  focus:border-cyan-500"
                     required
                   />
                 </div>

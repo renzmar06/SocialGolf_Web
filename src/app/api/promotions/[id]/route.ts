@@ -33,9 +33,8 @@ export async function PUT(
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({
         success: false,
-        message: "Invalid promotion ID",
-        data: null
-      }, { status: 400 });
+        message: "Invalid promotion ID"
+      }, { status: 200 });
     }
 
     const data = await request.json();
@@ -45,9 +44,8 @@ export async function PUT(
     if (!promotion) {
       return NextResponse.json({
         success: false,
-        message: "Promotion not found",
-        data: null
-      }, { status: 404 });
+        message: "Promotion not found"
+      }, { status: 200 });
     }
 
     return NextResponse.json({
@@ -59,9 +57,8 @@ export async function PUT(
     console.error("PUT ERROR:", error);
     return NextResponse.json({
       success: false,
-      message: "Failed to update promotion",
-      data: null
-    }, { status: 500 });
+      message: "Failed to update promotion"
+    }, { status: 200 });
   }
 }
 
@@ -74,9 +71,8 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({
         success: false,
-        message: 'Invalid promotion ID',
-        data: null
-      }, { status: 400 });
+        message: 'Invalid promotion ID'
+      }, { status: 200 });
     }
 
     const promotion = await Promotion.findByIdAndDelete(id);
@@ -84,23 +80,20 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     if (!promotion) {
       return NextResponse.json({
         success: false,
-        message: 'Promotion not found',
-        data: null
-      }, { status: 404 });
+        message: 'Promotion not found'
+      }, { status: 200 });
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Promotion deleted successfully',
-      data: { id }
+      message: 'Promotion deleted successfully'
     });
 
   } catch (error) {
     console.error("DELETE ERROR:", error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to delete promotion',
-      data: null
-    }, { status: 500 });
+      message: 'Failed to delete promotion'
+    }, { status: 200 });
   }
 }
