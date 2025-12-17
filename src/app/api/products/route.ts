@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const filename = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
 
-      const uploadDir = path.join(process.cwd(), 'public/uploads');
+      const uploadDir = path.join(process.cwd(), 'tmp/uploads');
       await mkdir(uploadDir, { recursive: true });
       await writeFile(path.join(uploadDir, filename), buffer);
 

@@ -58,9 +58,9 @@ export async function POST(request: NextRequest) {
     const galleryFiles = formData.getAll("gallery") as File[]; // This gets all files with name="gallery"
 
     // Directories
-    const logoDir = path.join(process.cwd(), "public/uploads/logos");
-    const docDir = path.join(process.cwd(), "public/uploads/docs");
-    const galleryDir = path.join(process.cwd(), "public/uploads/gallery");
+    const logoDir = path.join(process.cwd(), "tmp/uploads/logos");
+    const docDir = path.join(process.cwd(), "tmp/uploads/docs");
+    const galleryDir = path.join(process.cwd(), "tmp/uploads/gallery");
 
     await mkdir(logoDir, { recursive: true });
     await mkdir(docDir, { recursive: true });

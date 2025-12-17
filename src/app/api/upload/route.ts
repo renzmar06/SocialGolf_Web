@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(bytes);
 
       const filename = `${Date.now()}-${file.name}`;
-      const path = join(process.cwd(), "public/uploads", filename);
+      const path = join(process.cwd(), "tmp/uploads", filename);
       
       await writeFile(path, buffer);
       urls.push(`/uploads/${filename}`);

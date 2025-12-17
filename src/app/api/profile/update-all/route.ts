@@ -90,7 +90,7 @@ export async function PUT(req: Request) {
     if (logoFile && logoFile.size > 0) {
       const buffer = Buffer.from(await logoFile.arrayBuffer());
       const filename = `${Date.now()}-${logoFile.name.replace(/\s/g, "_")}`;
-      const logoDir = path.join(process.cwd(), "public/uploads/logos");
+      const logoDir = path.join(process.cwd(), "tmp/uploads/logos");
       await mkdir(logoDir, { recursive: true });
       await writeFile(path.join(logoDir, filename), buffer);
       businessUpdate.logo = `/uploads/logos/${filename}`;
@@ -112,7 +112,7 @@ export async function PUT(req: Request) {
 
     const newGalleryFiles = formData.getAll("gallery") as File[];
     const galleryUrls = [...existingGallery];
-    const galleryDir = path.join(process.cwd(), "public/uploads/gallery");
+    const galleryDir = path.join(process.cwd(), "tmp/uploads/gallery");
     await mkdir(galleryDir, { recursive: true });
 
     for (const file of newGalleryFiles) {

@@ -19,7 +19,7 @@ import { useTheme } from "next-themes";
 import { useSidebarContext } from "@/components/Layouts/sidebar/page";
 import { useAuth } from "@/hooks/useAuth";
 
-import avatar from "../../../../public/images/user/user-02.png";
+import avatar from "../../../../tmp/images/user/user-02.png";
 
 export default function Header() {
   const THEMES = [
