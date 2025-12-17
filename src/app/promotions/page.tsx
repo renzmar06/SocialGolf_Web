@@ -32,6 +32,7 @@ import {
     Clock,
 } from "lucide-react";
 import QRCode from "react-qr-code";
+import toast, { Toaster } from "react-hot-toast";
 
 const TABS = ["All", "Active", "Scheduled", "Boosted", "Expired"] as const;
 type Tab = (typeof TABS)[number];
@@ -281,17 +282,30 @@ export default function PromotionsPage() {
         try {
             if (editingPromotion) {
                 await dispatch(updatePromotion({ id: editingPromotion._id, data: promotionData })).unwrap();
+                toast.success("Promotion updated successfully!");
             } else {
                 await dispatch(savePromotion(promotionData)).unwrap();
+                toast.success("Promotion created successfully!");
             }
             closeModal();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to save promotion:', error);
+            toast.error(error.message || "Failed to save promotion");
         }
     };
 
-    const handleDelete = (id: string) => {
-        dispatch(deletePromotion(id));
+    const handleDelete = async (id: string) => {
+        if (!confirm("Are you sure you want to delete this promotion? This action cannot be undone.")) {
+            return;
+        }
+        
+        try {
+            await dispatch(deletePromotion(id)).unwrap();
+            toast.success("Promotion deleted successfully!");
+        } catch (error: any) {
+            console.error('Failed to delete promotion:', error);
+            toast.error(error.message || "Failed to delete promotion");
+        }
     };
 
     const handlePauseResume = async (promotion: any) => {
@@ -301,8 +315,10 @@ export default function PromotionsPage() {
                 id: promotion._id, 
                 data: { status: newStatus } 
             })).unwrap();
-        } catch (error) {
+            toast.success(`Promotion ${newStatus === "Paused" ? "paused" : "resumed"} successfully!`);
+        } catch (error: any) {
             console.error('Failed to update promotion status:', error);
+            toast.error(error.message || "Failed to update promotion status");
         }
     };
 
@@ -1139,6 +1155,7 @@ export default function PromotionsPage() {
                     </div>
                 </div>
             )}
+            <Toaster position="top-right" />
         </div>
     );
 }

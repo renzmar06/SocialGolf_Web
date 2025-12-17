@@ -26,35 +26,64 @@ const initialState: SocialPostState = {
   error: null,
 };
 
-export const fetchPosts = createAsyncThunk("socialPost/fetchPosts", async () => {
-  const response = await fetch("/api/social-posts");
-  const data = await response.json();
-  return data.posts;
+export const fetchPosts = createAsyncThunk("socialPost/fetchPosts", async (_, { rejectWithValue }) => {
+  try {
+    const response = await fetch("/api/social-posts");
+    const data = await response.json();
+    if (!data.success) {
+      return rejectWithValue(data.message || "Failed to fetch posts");
+    }
+    return data.posts;
+  } catch (error: any) {
+    return rejectWithValue(error.message || "Failed to fetch posts");
+  }
 });
 
-export const createPost = createAsyncThunk("socialPost/createPost", async (postData: Partial<SocialPost>) => {
-  const response = await fetch("/api/social-posts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(postData),
-  });
-  const data = await response.json();
-  return data.post;
+export const createPost = createAsyncThunk("socialPost/createPost", async (postData: Partial<SocialPost>, { rejectWithValue }) => {
+  try {
+    const response = await fetch("/api/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(postData),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      return rejectWithValue(data.message || "Failed to create post");
+    }
+    return data.post;
+  } catch (error: any) {
+    return rejectWithValue(error.message || "Failed to create post");
+  }
 });
 
-export const updatePost = createAsyncThunk("socialPost/updatePost", async ({ id, data }: { id: string; data: Partial<SocialPost> }) => {
-  const response = await fetch(`/api/social-posts/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  const result = await response.json();
-  return result.post;
+export const updatePost = createAsyncThunk("socialPost/updatePost", async ({ id, data }: { id: string; data: Partial<SocialPost> }, { rejectWithValue }) => {
+  try {
+    const response = await fetch(`/api/social-posts/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!result.success) {
+      return rejectWithValue(result.message || "Failed to update post");
+    }
+    return result.post;
+  } catch (error: any) {
+    return rejectWithValue(error.message || "Failed to update post");
+  }
 });
 
-export const deletePost = createAsyncThunk("socialPost/deletePost", async (id: string) => {
-  await fetch(`/api/social-posts/${id}`, { method: "DELETE" });
-  return id;
+export const deletePost = createAsyncThunk("socialPost/deletePost", async (id: string, { rejectWithValue }) => {
+  try {
+    const response = await fetch(`/api/social-posts/${id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!data.success) {
+      return rejectWithValue(data.message || "Failed to delete post");
+    }
+    return id;
+  } catch (error: any) {
+    return rejectWithValue(error.message || "Failed to delete post");
+  }
 });
 
 const socialPostSlice = createSlice({

@@ -11,12 +11,12 @@ export async function PUT(
   try {
     const token = request.cookies.get("token")?.value;
     if (!token) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 200 });
     }
 
     const decoded = verifyToken(token);
     if (!decoded) {
-      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 200 });
     }
 
     await connectDB();
@@ -24,7 +24,7 @@ export async function PUT(
     const { content, postType, images, status } = await request.json();
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ success: false, message: "Invalid post ID" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Invalid post ID" }, { status: 200 });
     }
 
     const post = await SocialPost.findByIdAndUpdate(
@@ -34,13 +34,13 @@ export async function PUT(
     );
 
     if (!post) {
-      return NextResponse.json({ success: false, message: "Post not found" }, { status: 404 });
+      return NextResponse.json({ success: false, message: "Post not found" }, { status: 200 });
     }
 
     return NextResponse.json({ success: true, message: "Post updated successfully", post });
   } catch (error) {
     console.error("PUT Error:", error);
-    return NextResponse.json({ success: false, message: "Failed to update post" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Failed to update post" }, { status: 200 });
   }
 }
 
@@ -51,30 +51,30 @@ export async function DELETE(
   try {
     const token = request.cookies.get("token")?.value;
     if (!token) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 200 });
     }
 
     const decoded = verifyToken(token);
     if (!decoded) {
-      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "Invalid token" }, { status: 200 });
     }
 
     await connectDB();
     const { id } = await context.params;
     
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ success: false, message: "Invalid post ID" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Invalid post ID" }, { status: 200 });
     }
 
     const post = await SocialPost.findByIdAndDelete(id);
 
     if (!post) {
-      return NextResponse.json({ success: false, message: "Post not found" }, { status: 404 });
+      return NextResponse.json({ success: false, message: "Post not found" }, { status: 200 });
     }
 
     return NextResponse.json({ success: true, message: "Post deleted successfully" });
   } catch (error) {
     console.error("DELETE Error:", error);
-    return NextResponse.json({ success: false, message: "Failed to delete post" }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Failed to delete post" }, { status: 200 });
   }
 }

@@ -30,6 +30,9 @@ export const saveBooking = createAsyncThunk(
   async (bookingData: Omit<Booking, '_id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
     try {
       const response = await axios.post('/api/bookings', bookingData);
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to save booking');
+      }
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to save booking');
@@ -42,6 +45,9 @@ export const fetchBookings = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get('/api/bookings');
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to fetch bookings');
+      }
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');
@@ -53,7 +59,10 @@ export const deleteBooking = createAsyncThunk(
   'booking/delete',
   async (id: string, { rejectWithValue }) => {
     try {
-      await axios.delete(`/api/bookings/${id}`);
+      const response = await axios.delete(`/api/bookings/${id}`);
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to delete booking');
+      }
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete booking');
@@ -66,6 +75,9 @@ export const updateBooking = createAsyncThunk(
   async ({ id, data }: { id: string; data: Partial<Booking> }, { rejectWithValue }) => {
     try {
       const response = await axios.put(`/api/bookings/${id}`, data);
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to update booking');
+      }
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update booking');

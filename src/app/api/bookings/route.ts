@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         message: "Failed to create booking",
         error: error.message || "Unknown error",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }
@@ -66,7 +66,7 @@ export async function GET() {
         success: false,
         message: "Failed to fetch bookings",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

@@ -36,9 +36,8 @@ export async function POST(request: NextRequest) {
     console.error("API Error:", error);
     return NextResponse.json({
       success: false,
-      message: "Failed to create promotion",
-      data: null
-    }, { status: 500 });
+      message: "Failed to create promotion"
+    }, { status: 200 });
   }
 }
 
@@ -55,8 +54,7 @@ export async function GET() {
     console.error("API Error:", error);
     return NextResponse.json({
       success: false,
-      message: "Failed to fetch promotions",
-      data: []
-    }, { status: 500 });
+      message: "Failed to fetch promotions"
+    }, { status: 200 });
   }
 }
