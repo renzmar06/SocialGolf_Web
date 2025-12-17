@@ -7,6 +7,7 @@ import { useDispatch } from "react-redux";
 import { setUser } from "@/store/slices/userSlice";
 import Cookies from "js-cookie";
 import logo from "@/assets/logos/Social-golf-logo.png";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,22 +27,24 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+      if (data.success) {
         Cookies.set("token", data.token, { expires: 7 });
         dispatch(setUser(data.user));
         window.location.href = "/dashboard";
       } else {
-        alert("Invalid credentials");
+        toast.error(data.message || "Invalid credentials");
       }
     } catch (error) {
-      alert("Login failed");
+      toast.error("Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
+    <Toaster position="top-right" />
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100">
       <div className="circle circle-1"></div>
       <div className="circle circle-2"></div>
@@ -102,5 +105,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

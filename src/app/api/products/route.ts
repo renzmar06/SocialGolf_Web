@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { success: false, message: 'User not authenticated' },
-        { status: 401 }
+        { status: 200 }
       );
     }
 
@@ -57,14 +57,13 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { success: true, message: 'Product created successfully', data: product },
-      { status: 201 }
+      { success: true, message: 'Product created successfully', data: product }
     );
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to create product' },
-      { status: 400 }
+      { status: 200 }
     );
   }
 }
@@ -87,7 +86,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { success: false, message: 'Failed to fetch products' },
-      { status: 400 }
+      { status: 200 }
     );
   }
 }

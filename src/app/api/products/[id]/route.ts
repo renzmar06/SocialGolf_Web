@@ -16,7 +16,7 @@ export async function DELETE(
   if (!id) {
     return NextResponse.json(
       { success: false, message: 'Missing product ID' },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -25,11 +25,11 @@ export async function DELETE(
   if (!product) {
     return NextResponse.json(
       { success: false, message: 'Product not found' },
-      { status: 404 }
+      { status: 200 }
     );
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, message: 'Product deleted successfully' });
 }
 
 /* =========================
@@ -46,7 +46,7 @@ export async function PATCH(
   if (!id) {
     return NextResponse.json(
       { success: false, message: 'Missing product ID' },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -64,11 +64,11 @@ export async function PATCH(
   if (!product) {
     return NextResponse.json(
       { success: false, message: 'Product not found' },
-      { status: 404 }
+      { status: 200 }
     );
   }
 
-  return NextResponse.json({ success: true, data: product });
+  return NextResponse.json({ success: true, message: 'Product updated successfully', data: product });
 }
 
 /* =========================
@@ -85,7 +85,7 @@ export async function PUT(
   if (!id) {
     return NextResponse.json(
       { success: false, message: 'Missing product ID' },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -110,10 +110,10 @@ export async function PUT(
   if (!product) {
     return NextResponse.json(
       { success: false, message: 'Product not found' },
-      { status: 404 }
+      { status: 200 }
     );
   }
 
-  return NextResponse.json({ success: true, data: product ,message: 'Product update sucessfully.',status: 200  });
+  return NextResponse.json({ success: true, data: product, message: 'Product updated successfully' });
    
 }

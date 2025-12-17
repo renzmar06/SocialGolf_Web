@@ -1,3 +1,4 @@
+// app/api/bookings/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import mongoose from 'mongoose';
@@ -26,12 +27,25 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     const data = await request.json();
+
     const booking = new Booking(data);
     await booking.save();
-    return NextResponse.json(booking);
-  } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+
+    return NextResponse.json({
+      success: true,
+      message: "Booking created successfully",
+      data: booking,
+    });
+  } catch (error: any) {
+    console.error("POST ERROR:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to create booking",
+        error: error.message || "Unknown error",
+      },
+      { status: 200 }
+    );
   }
 }
 
@@ -39,9 +53,20 @@ export async function GET() {
   try {
     await connectDB();
     const bookings = await Booking.find({}).sort({ createdAt: -1 });
-    return NextResponse.json(bookings);
+
+    return NextResponse.json({
+      success: true,
+      message: "Bookings fetched successfully",
+      data: bookings,
+    });
   } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
+    console.error("GET ERROR:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to fetch bookings",
+      },
+      { status: 200 }
+    );
   }
 }

@@ -128,7 +128,7 @@ export default function Header() {
               </div>
               <div className="text-left">
                 <div className="text-sm font-semibold">{userName}</div>
-                <div className="text-xs opacity-90">Premium Member</div>
+                {/* <div className="text-xs opacity-90">Premium Member</div> */}
               </div>
             </button>
 
@@ -155,7 +155,7 @@ export default function Header() {
                         <h4 className="font-semibold text-gray-900 dark:text-white">
                           {userName}
                         </h4>
-                        <p className="text-sm text-gray-500">Premium Member</p>
+                        {/* <p className="text-sm text-gray-500">Premium Member</p> */}
                       </div>
                     </div>
                   </div>

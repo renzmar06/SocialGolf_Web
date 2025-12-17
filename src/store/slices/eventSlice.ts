@@ -1,3 +1,5 @@
+// src/store/slices/eventSlice.ts
+
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
@@ -21,6 +23,13 @@ interface Event {
   updatedAt: Date;
 }
 
+interface ApiResponse {
+  success: boolean;
+  data?: Event[] | Event;
+  message?: string;
+  error?: string;
+}
+
 interface EventState {
   data: Event[];
   loading: boolean;
@@ -38,7 +47,11 @@ export const saveEvent = createAsyncThunk(
   async (eventData: Omit<Event, '_id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
     try {
       const response = await axios.post('/api/events', eventData);
-      return response.data;
+      // New format: { success: true, data: event }
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to save event');
+      }
+      return response.data.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to save event');
     }
@@ -50,21 +63,12 @@ export const fetchEvents = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get('/api/events');
-      return response.data;
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to fetch events');
+      }
+      return response.data.data; // This should be the array
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch events');
-    }
-  }
-);
-
-export const deleteEvent = createAsyncThunk(
-  'event/delete',
-  async (id: string, { rejectWithValue }) => {
-    try {
-      await axios.delete(`/api/events/${id}`);
-      return id;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to delete event');
     }
   }
 );
@@ -74,9 +78,27 @@ export const updateEvent = createAsyncThunk(
   async ({ id, data }: { id: string; data: Partial<Event> }, { rejectWithValue }) => {
     try {
       const response = await axios.put(`/api/events/${id}`, data);
-      return response.data;
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to update event');
+      }
+      return response.data.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update event');
+    }
+  }
+);
+
+export const deleteEvent = createAsyncThunk(
+  'event/delete',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.delete(`/api/events/${id}`);
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to delete event');
+      }
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete event');
     }
   }
 );
@@ -88,65 +110,69 @@ const eventSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.loading = action.payload;
-    },
   },
   extraReducers: (builder) => {
     builder
+      // FETCH
       .addCase(fetchEvents.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchEvents.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = action.payload;
+        // Safety: ensure payload is an array
+        if (Array.isArray(action.payload)) {
+          state.data = action.payload;
+        } else {
+          console.warn('fetchEvents fulfilled but payload is not array:', action.payload);
+          state.data = [];
+        }
       })
       .addCase(fetchEvents.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.data = []; // Important: reset to empty array on error
       })
-      .addCase(saveEvent.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+
+      // SAVE
       .addCase(saveEvent.fulfilled, (state, action) => {
         state.loading = false;
-        state.data.push(action.payload);
+        state.data.push(action.payload as Event);
       })
-      .addCase(saveEvent.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(updateEvent.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+
+      // UPDATE
       .addCase(updateEvent.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.data.findIndex(event => event._id === action.payload._id);
+        const updatedEvent = action.payload as Event;
+        const index = state.data.findIndex((e) => e._id === updatedEvent._id);
         if (index !== -1) {
-          state.data[index] = action.payload;
+          state.data[index] = updatedEvent;
         }
       })
-      .addCase(updateEvent.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(deleteEvent.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+
+      // DELETE
       .addCase(deleteEvent.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = state.data.filter(event => event._id !== action.payload);
+        state.data = state.data.filter((e) => e._id !== action.payload);
       })
-      .addCase(deleteEvent.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      });
+
+      // Common pending/rejected for save/update/delete
+      .addMatcher(
+        (action) => action.type.endsWith('/pending'),
+        (state) => {
+          state.loading = true;
+          state.error = null;
+        }
+      )
+      .addMatcher(
+  (action): action is PayloadAction<string> => action.type.endsWith('/rejected'),
+  (state, action) => {
+    state.loading = false;
+    state.error = action.payload ?? 'An unexpected error occurred';
+  }
+)
   },
 });
 
-export const { clearError, setLoading } = eventSlice.actions;
+export const { clearError } = eventSlice.actions;
 export default eventSlice.reducer;

@@ -12,7 +12,6 @@ interface Promotion {
   endDate: string;
   visibility: string;
   maxRedemptions?: number;
-  currentRedemptions: number;
   coverImage?: string;
   status: string;
   createdAt: Date;
