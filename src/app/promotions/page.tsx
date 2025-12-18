@@ -135,8 +135,8 @@ export default function PromotionsPage() {
     };
 
     const activeCount = useMemo(() => promotions.filter(p => getStatus(p.startDate, p.endDate) === "Active").length, [promotions]);
-    const totalViews = useMemo(() => promotions.length * 10, [promotions]); // Mock views
-    const totalRedemptions = useMemo(() => 0, [promotions]); // Remove currentRedemptions calculation
+    const totalViews = useMemo(() => promotions.length * 10, [promotions]);
+    const totalRedemptions = useMemo(() => 0, [promotions]); 
 
     const filteredPromotions = useMemo(() => {
         let filtered = promotions.filter(
@@ -320,7 +320,7 @@ export default function PromotionsPage() {
                 toast.success('Promotion created successfully!');
             }
             closeModal();
-        } catch (error: any) {
+        } catch (error) {
             console.error('Failed to save promotion:', error);
             toast.error('Failed to save promotion. Please try again.');
         }
@@ -362,17 +362,14 @@ export default function PromotionsPage() {
     };
 
     const calculateTotalCost = () => {
-        const basePrices = {
+        const fixedPrices = {
             starter: 5,
             basic: 10,
             standard: 25,
             premium: 50,
             citywide: 100
         };
-        const basePrice = basePrices[selectedPackage as keyof typeof basePrices];
-        const radiusMultiplier = radius / 15; // Base radius is 15 miles
-        const durationMultiplier = duration / 3; // Base duration is 3 days
-        return Math.round(basePrice * radiusMultiplier * durationMultiplier);
+        return fixedPrices[selectedPackage as keyof typeof fixedPrices] || 10;
     };
 
     const handleBoostPromotion = () => {
@@ -382,17 +379,14 @@ export default function PromotionsPage() {
     };
 
     const getEstimatedResults = () => {
-        const baseImpressions = {
-            starter: 1000,
-            basic: 2500,
-            standard: 7500,
-            premium: 20000,
-            citywide: 50000
+        const results = {
+            starter: { impressions: 1000, clicks: 150, saves: 80 },
+            basic: { impressions: 2500, clicks: 375, saves: 200 },
+            standard: { impressions: 7500, clicks: 1125, saves: 600 },
+            premium: { impressions: 20000, clicks: 3000, saves: 1600 },
+            citywide: { impressions: 50000, clicks: 7500, saves: 4000 }
         };
-        const impressions = baseImpressions[selectedPackage as keyof typeof baseImpressions] || 2500;
-        const clicks = Math.round(impressions * 0.05); 
-        const saves = Math.round(impressions * 0.02); 
-        return { impressions, clicks, saves };
+        return results[selectedPackage as keyof typeof results] || results.basic;
     };
 
     return (
@@ -1133,6 +1127,7 @@ export default function PromotionsPage() {
                                     type="number"
                                     value={radius}
                                     onChange={(e) => setRadius(parseInt(e.target.value) || 15)}
+                                    max={50}
                                     className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-gray-500">
@@ -1149,6 +1144,7 @@ export default function PromotionsPage() {
                                     type="number"
                                     value={duration}
                                     onChange={(e) => setDuration(parseInt(e.target.value) || 3)}
+                                    max={7}
                                     className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
                                 />
                                 <p className="mt-1 text-xs text-gray-500">
@@ -1214,7 +1210,6 @@ export default function PromotionsPage() {
                     </div>
                 </div>
             )}
-
             <Toaster position="top-right" />
         </>
     );
