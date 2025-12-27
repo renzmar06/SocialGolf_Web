@@ -52,6 +52,8 @@ export default function ProfileEditPage() {
 
   const [businessData, setBusinessData] = useState<any | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [verificationFile, setVerificationFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // -----------------
@@ -134,17 +136,21 @@ export default function ProfileEditPage() {
     const file = e.target.files?.[0];
     if (!file) {
       setLogoPreview(null);
-      handleBusinessChange("logo", null);
+      setLogoFile(null);
       return;
     }
 
+    setLogoFile(file);
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      setLogoPreview(result);
-      handleBusinessChange("logo", result);
+      setLogoPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleVerificationFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setVerificationFile(file || null);
   };
 
   const handleHoursChange = (day: string, key: "open" | "close" | "closed", value: any) => {
@@ -212,13 +218,14 @@ export default function ProfileEditPage() {
     // Existing gallery URLs (the ones we want to keep)
     formData.append("existingGallery", JSON.stringify(businessData.gallery || []));
 
-    // Logo file (if new one selected)
-    if (businessData.logo && businessData.logo.startsWith("data:")) {
-      // Convert data URL back to File (only if it's a new upload)
-      const response = await fetch(businessData.logo);
-      const blob = await response.blob();
-      const filename = "logo." + blob.type.split("/")[1];
-      formData.append("logo", blob, filename);
+    // Logo file
+    if (logoFile) {
+      formData.append("logo", logoFile);
+    }
+
+    // Verification document file
+    if (verificationFile) {
+      formData.append("verificationDoc", verificationFile);
     }
 
     // New gallery files
@@ -437,12 +444,19 @@ export default function ProfileEditPage() {
 
             <div>
               <label className="block text-sm font-medium mb-2">Verification Document</label>
-              {businessData.verificationDoc ? (
-                <a href={businessData.verificationDoc} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                  View document
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={handleVerificationFileChange}
+                className="w-full px-4 py-3 border rounded-lg mb-2"
+              />
+              {verificationFile && (
+                <p className="text-sm text-green-600">Selected: {verificationFile.name}</p>
+              )}
+              {businessData.verificationDoc && (
+                <a href={businessData.verificationDoc} target="_blank" rel="noreferrer" className="text-blue-600 underline block mt-2">
+                  View current document
                 </a>
-              ) : (
-                <span className="text-sm text-gray-500">No document uploaded</span>
               )}
               <div className="mt-3">
                 <label className="inline-flex items-center">

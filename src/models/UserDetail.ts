@@ -9,14 +9,17 @@ const UserDetailSchema = new mongoose.Schema({
   },
   type: { 
     type: String, 
-    required: true 
+    required: false 
   }, // e.g., "coach-trainer", "retail", "event-host"
   
   businessName: { 
     type: String, 
-    required: true 
+    required: false 
   },
   aboutBusiness: String,
+  bio: String,
+  skillLevel: String,
+  favoriteCourses: [String],
   
   // Address
   streetAddress: String,
@@ -31,11 +34,11 @@ const UserDetailSchema = new mongoose.Schema({
   // Files (stored as URLs after upload)
   logo: { 
     type: String, 
-    required: true 
+    required: false 
   }, // URL to uploaded logo
   verificationDoc: { 
     type: String, 
-    required: true 
+    required: false 
   }, // URL to verification document
   
   // NEW: Gallery Photos - Array of image URLs
@@ -62,11 +65,11 @@ const UserDetailSchema = new mongoose.Schema({
     {
       name: { 
         type: String, 
-        required: true 
+        required: false 
       },
       email: { 
         type: String, 
-        required: true, 
+        required: false, 
         lowercase: true 
       },
       role: { 

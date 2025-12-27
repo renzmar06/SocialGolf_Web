@@ -16,6 +16,7 @@ const EventSchema = new mongoose.Schema({
   rules: { type: String },
   prizes: { type: String },
   coverImage: { type: String },
+  createdBy: { type: String, required: true },
   status: { type: String, default: 'Draft' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
